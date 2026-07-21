@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Validation tests for provider_intel.zsh logic — re-implemented in Python
-to test the logic and data transformations in a zsh-free environment.
+Validation tests for provider_intel.sh logic — re-implemented in Python
+to test the logic and data transformations without any shell dependency.
 
-These tests verify the same invariants as validate.zsh, using the same
-fixture data. They confirm the implementation decisions are correct before
-the code is used in a live zsh environment.
+These tests verify the same invariants as validate.sh, using the same
+fixture data. They confirm the implementation decisions are correct
+independent of any particular shell implementation.
 """
 
 import json

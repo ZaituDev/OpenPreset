@@ -4,7 +4,7 @@ A terminal tool that picks Claude Code's model and provider routing through Open
 
 ## What is Claude Router?
 
-Claude Router is a small zsh tool that runs right before `claude` starts. It lets you choose which model Claude Code uses (via [OpenRouter](https://openrouter.ai)), see a live comparison of every provider available for that model, set a priority order between them, and save that order as a named preset.
+Claude Router is a small POSIX shell tool that runs right before `claude` starts. It lets you choose which model Claude Code uses (via [OpenRouter](https://openrouter.ai)), see a live comparison of every provider available for that model, set a priority order between them, and save that order as a named preset.
 
 Presets aren't local-only settings. Claude Router creates and manages them as real preset resources on your OpenRouter account, using OpenRouter's own preset API. They persist independently of this tool — once created, a preset is addressable as `@preset/<slug>` from any OpenRouter-compatible client, not just from Claude Router.
 
@@ -36,7 +36,8 @@ Different workflows want different defaults — a brainstorming session might wa
 
 ## At a Glance
 
-- Pick a model from OpenRouter's catalogue (autocomplete, validation, your own saved list)
+- Runs on **any POSIX shell** — bash, dash, zsh, ksh, busybox ash. No zsh required, anywhere.
+- Pick a model from OpenRouter's catalogue (fzf-powered search, validation, your own saved list)
 - See live per-provider cost, uptime, latency, and throughput before choosing
 - Save a provider priority order as a named preset — created on your OpenRouter account, not just locally
 - Reuse a preset at launch instead of re-picking providers
@@ -46,7 +47,7 @@ Different workflows want different defaults — a brainstorming session might wa
 ## How does it work?
 
 ```
-Select model  (fzf picker with metadata preview)
+Select model  (fzf picker, or numbered-menu fallback without fzf)
     ↓
 Choose launch mode: Direct or Preset
     ↓
@@ -66,7 +67,7 @@ Launch Claude — with ANTHROPIC_MODEL=@preset/<slug>
 
 ## Requirements
 
-- [Zsh](https://www.zsh.org/) 5.8 or later
+- Any POSIX-compliant shell — the system `/bin/sh`, bash, dash, ksh, or zsh all work unmodified. Nothing here requires zsh specifically.
 - [curl](https://curl.se/)
 - [jq](https://stedolan.github.io/jq/) 1.6 or later
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude` CLI)
@@ -77,26 +78,26 @@ Launch Claude — with ANTHROPIC_MODEL=@preset/<slug>
 
 Clone the repository anywhere on your system:
 
-```zsh
+```sh
 git clone https://github.com/zaidsubhani135/claude-router ~/.local/share/claude-router
 ```
 
-Set your OpenRouter credentials (add these to `~/.zshrc` or equivalent):
+Set your OpenRouter credentials (add these to `~/.bashrc`, `~/.zshrc`, `~/.profile`, or whichever shell startup file you use):
 
-```zsh
+```sh
 export ANTHROPIC_BASE_URL="https://openrouter.ai/api/v1"
 export ANTHROPIC_AUTH_TOKEN="sk-or-..."   # Your OpenRouter API key
 ```
 
 Run the primary launcher, `cr`, directly, or put it on your `PATH`:
 
-```zsh
+```sh
 ~/.local/share/claude-router/launchers/cr
 # or
 ln -s ~/.local/share/claude-router/launchers/cr ~/.local/bin/cr
 ```
 
-That's it — `cr` picks a model, runs the router, and launches `claude` in one step. No further setup is required. The `router/` directory must remain a sibling of `launchers/` at the repo root.
+That's it — `cr` picks a model, runs the router, and launches `claude` in one step. No further setup is required, and no particular login shell is required either: `cr` works the same way whether your default shell is bash, zsh, dash, fish (invoking `cr` as an external command), or anything else, because `cr` runs under its own `#!/usr/bin/env sh` shebang regardless of what shell invoked it. The `router/` directory must remain a sibling of `launchers/` at the repo root.
 
 Without a launcher overriding it, the model picker's default offering is `openrouter/free`. Most users will want to add their own models via the picker's "manage" menu, or use a launcher that sets `CLAUDE_ROUTER_DEFAULT_MODELS`.
 
@@ -111,12 +112,15 @@ Without a launcher overriding it, the model picker's default offering is `openro
 
 ### Enhanced UI (fzf)
 
-When [fzf](https://github.com/junegunn/fzf) is installed, the router uses interactive menus with search, arrow-key navigation, and preview panes. Without it, the router falls back to numbered-list menus with no loss of functionality (a one-time warning is printed the first time fzf is expected but absent).
+When [fzf](https://github.com/junegunn/fzf) is installed, the router uses interactive menus with search, arrow-key navigation, multi-select, and live re-sorting. Without it, the router falls back to numbered-list menus with no loss of functionality (a one-time warning is printed the first time fzf is expected but absent).
 
-```zsh
+The two UIs are mutually exclusive at every prompt — whichever one is active is the *only* one that prints. Earlier versions of this tool had a bug where the plain numbered provider list (meant only for the no-fzf fallback) also printed above the interactive fzf picker even when fzf was installed and being used, so the fzf menu appeared underneath leftover fallback text it had no use for. That's fixed: each prompt now picks exactly one UI and renders only that one. See [Troubleshooting](#troubleshooting) if you're upgrading from an older copy and still see this.
+
+```sh
 brew install fzf          # macOS
 apt-get install fzf       # Debian/Ubuntu
-dnf install fzf           # Fedora
+dnf install fzf            # Fedora
+pacman -S fzf              # Arch
 ```
 
 ## Creating Custom Launchers
@@ -127,17 +131,17 @@ The full contract:
 
 1. *(optional)* Set `CLAUDE_ROUTER_DEFAULT_MODELS` — a newline-joined list of model ids to offer in the picker. Omit to use the router's built-in default (`openrouter/free`).
 2. Set `CLAUDE_ROUTER_MODEL` — usually `__pick__` to open the interactive picker, or a specific model id to skip it.
-3. Source `router/router_engine.zsh` and call `claude_router`.
+3. Source `router/router_engine.sh` and call `claude_router`.
 4. On success, `exec claude "$@"` (or a custom invocation, as `braining` does with its slash-command).
 
 Nothing else is required. The easiest way to start is to copy the documented skeleton:
 
-```zsh
+```sh
 cp extras/launchers/template launchers/my-launcher
 chmod +x launchers/my-launcher
 ```
 
-`extras/launchers/template` implements the contract above with nothing else added, and is meant to be copied and edited.
+`extras/launchers/template` implements the contract above with nothing else added, and is meant to be copied and edited. It's written in the same portable POSIX `sh` as everything else — no zsh-specific syntax to unlearn or work around.
 
 ### Active vs. example launchers
 
@@ -145,15 +149,15 @@ Only `launchers/` is treated as the project's active set of standalone, executab
 
 `braining` and `superpowers` are meant to be `source`d into your shell rather than executed, since `superpowers` undoes env vars `braining` sets in the same session. Because of that, "activating" them by copying into `launchers/` is optional and only affects discoverability — they work identically whether sourced from `extras/launchers/` directly or from a copy in `launchers/`:
 
-```zsh
-# In ~/.zshrc
-source ~/.local/share/claude-router/extras/launchers/braining
-source ~/.local/share/claude-router/extras/launchers/superpowers
+```sh
+# In ~/.bashrc, ~/.zshrc, or equivalent
+. ~/.local/share/claude-router/extras/launchers/braining
+. ~/.local/share/claude-router/extras/launchers/superpowers
 ```
 
 ### Example launchers
 
-- **`cr`** (`launchers/`) — the primary entrypoint. No default model list, no behavioral overrides. Runs under `set -euo pipefail`, always opens the interactive picker, and on success runs `exec claude "$@"`. Has no dependencies beyond what's listed in Requirements.
+- **`cr`** (`launchers/`) — the primary entrypoint. No default model list, no behavioral overrides. Runs under `set -eu`, always opens the interactive picker, and on success runs `exec claude "$@"`. Has no dependencies beyond what's listed in Requirements. Portable POSIX `sh`.
 
 - **`braining`** (`extras/launchers/`) — brainstorming-mode example. Offers a small default model list and sets Claude Code env vars (`CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`, `CLAUDE_CODE_PLAN_MODE_INTERVIEW_PHASE=1`, `SUPERPOWERS_MODIFIER`) that keep Claude in a conversational, no-code-generation mode, then launches `claude "/brainstorming"`. **This launcher assumes a `/brainstorming` slash command and a `SUPERPOWERS_MODIFIER`-aware setup are already configured in your Claude Code environment** (the "Superpowers" plugin convention) — it is not runnable as-is on a vanilla Claude Code install. Treat it as a template for building your own workflow-specific launcher rather than a ready-to-use tool. Meant to be `source`d, since its env vars are intended to persist in your shell session.
 
@@ -171,20 +175,20 @@ extras/launchers/                (examples and templates)
     ├── superpowers               (example — undoes braining's overrides)
     └── template                  (start here to write your own)
 router/
-    ├── router_engine.zsh   (orchestrator — sources all modules, defines claude_router())
-    ├── config.zsh          (constants)
-    ├── utils.zsh           (die / warn / info / spinner / sanitize_slug)
-    ├── cache.zsh           (model catalogue cache lifecycle)
-    ├── openrouter.zsh      (REST API — curl wrappers; creates/deletes real OpenRouter presets)
-    ├── preset.zsh          (local metadata I/O + JSON payload builders)
-    ├── provider_intel.zsh  (provider metadata extraction + display)
-    ├── backup.zsh          (export / import — import recreates presets on OpenRouter)
-    ├── ui.zsh              (all terminal prompts and display; fzf + fallback)
-    ├── validate.zsh        (zsh validation suite, runs against real modules)
+    ├── router_engine.sh    (orchestrator — sources all modules, defines claude_router())
+    ├── config.sh           (constants)
+    ├── utils.sh            (die / warn / info / spinner / sanitize_slug)
+    ├── cache.sh            (model catalogue cache lifecycle)
+    ├── openrouter.sh       (REST API — curl wrappers; creates/deletes real OpenRouter presets)
+    ├── preset.sh           (local metadata I/O + JSON payload builders)
+    ├── provider_intel.sh   (provider metadata extraction + display)
+    ├── backup.sh           (export / import — import recreates presets on OpenRouter)
+    ├── ui.sh               (all terminal prompts and display; fzf + fallback, mutually exclusive)
+    ├── validate.sh         (POSIX sh validation suite, runs against the real modules)
     └── validate.py         (Python re-implementation of the same validation suite)
 ```
 
-Each module has exactly one responsibility. No business logic lives in the launchers — they only set environment variables and hand off. The router is fully independent of which launcher invokes it.
+Every file under `router/` and `launchers/` (and the examples under `extras/launchers/`) is portable POSIX `sh` — no `[[`, no arrays, no `${var:l}`/`${var,,}`-style parameter expansion, no `setopt`. Each is verified with `sh -n`, `bash -n`, `dash -n`, and `shellcheck --shell=sh` as part of keeping the port honest. Each module has exactly one responsibility. No business logic lives in the launchers — they only set environment variables and hand off. The router is fully independent of which shell or launcher invokes it.
 
 ## Reference
 
@@ -203,7 +207,7 @@ Defaults to `~/.config/claude-router/` and `~/.cache/claude-router/` when XDG va
 
 ### Provider intelligence table
 
-When creating or editing presets, the router displays a live provider metrics table derived from cached OpenRouter endpoint data:
+When creating or editing presets, the router displays a live provider metrics table derived from cached OpenRouter endpoint data. This table is shown once, identically, on both the fzf and no-fzf paths — it's reference information, not part of either picker's own UI:
 
 ```
   Provider          In$/M     Out$/M    Uptime    Latency  Throughput
@@ -219,38 +223,18 @@ When creating or editing presets, the router displays a live provider metrics ta
 - **Latency** — median (P50) time to first token (TTFT)
 - **Throughput** — median (P50) output tokens per second
 
+Once past this reference table, provider *selection* happens in exactly one UI:
+
+- **With fzf** — an interactive multi-select list, seeded with the same metrics inline on each row, with live re-sorting (see [Sorting](#sorting) below). Nothing else prints alongside it.
+- **Without fzf** — a plain numbered `#  Provider` list, followed by a text prompt asking for priority order as space-separated indices (e.g. `2 1 3`). This numbered list is scoped to this fallback only; it never appears when fzf is available and running.
+
 Additional fields are captured internally (not shown in the compact table, but available in the verbose view): request cost, image cost, P75/P90/P99 latency, P75/P90/P99 throughput, context length, max prompt/completion tokens, quantization, implicit-caching support, endpoint status, and supported parameters. Fields are `N/A` when OpenRouter doesn't provide data for that provider. No additional API calls are made — values are read from the already-cached endpoint response.
 
 **Data policy:** OpenRouter does not expose per-provider training or data-retention policy via its API. The verbose view shows `Unknown` for all providers. Don't rely on this router for data policy decisions — consult OpenRouter's [Privacy documentation](https://openrouter.ai/docs/guides/privacy/data-collection) and individual provider terms directly.
 
-### Verbose provider view
-
-In the fzf provider picker, the preview pane shows full metadata for the highlighted provider:
-
-```
-  Provider: DeepSeek
-
-  Context Window:    65k
-  Max Output Tokens: 8192
-  Quantization:      fp16
-
-  Prompt Cost:       0.1400 $/M tokens
-  Completion Cost:   0.2800 $/M tokens
-  Request Cost:      N/A
-
-  Latency P50 (TTFT):  584ms
-  Latency P90 (TTFT):  901ms
-  Throughput P50:      120t/s
-  Uptime (30m):        99.87%
-  Implicit Caching:    Yes
-
-  Data Policy:       Unknown
-  (OpenRouter does not expose per-provider data policy via API)
-```
-
 ### Sorting
 
-In the provider intelligence table, sort by pressing a key before confirming selection:
+In the fzf provider picker, sort by pressing a key before confirming selection:
 
 | Key | Sort by |
 |-----|---------|
@@ -260,11 +244,11 @@ In the provider intelligence table, sort by pressing a key before confirming sel
 | `t` | Throughput (highest first) |
 | `n` | Provider name (A–Z) |
 
-Sorting affects only the table view. It never modifies stored preset priorities or routing order.
+Sorting affects only the picker's display order. It never modifies stored preset priorities or routing order — selection order (the order you `Tab`-select or type indices in) is what's saved.
 
 ### Backup and restore
 
-From the preset manager (Preset mode → `x`/📤 to export, `i`/📥 to import):
+From the preset manager (Preset mode → export/import, whichever your active UI calls it):
 
 - **Export** writes a single versioned JSON file containing all locally tracked user models and preset metadata. This is a read of local state only — no network calls are made.
 - **Import** is a networked operation: it supports `merge` (keep existing, add imported) and `replace` (overwrite all) modes for local metadata, and for every imported preset it also calls OpenRouter's API to recreate that preset on your account. A bad or unexpected import can create or overwrite real presets on OpenRouter, not just local files.
@@ -273,14 +257,21 @@ Default export filename: `claude-router-backup-YYYY-MM-DD.json`
 
 ### Testing
 
-The router ships two equivalent validation suites that exercise the pure data-transform logic (provider intelligence extraction, formatting, sorting, verbose rendering, preset/backup schema invariants) against shared fixtures:
+The router ships two equivalent validation suites that exercise the pure data-transform logic (provider intelligence extraction, formatting, sorting, verbose rendering, preset/backup schema invariants) against shared fixtures, plus regression coverage for the fzf/no-fzf UI separation:
 
-```zsh
-zsh router/validate.zsh      # exercises the real zsh implementation directly
+```sh
+sh router/validate.sh        # exercises the real POSIX sh implementation directly
+# or: bash router/validate.sh / dash router/validate.sh — same result, any POSIX shell
 python3 router/validate.py   # re-implements and checks the same invariants in Python
 ```
 
-`validate.zsh` sources the actual modules (`config.zsh`, `utils.zsh`, `provider_intel.zsh`, `preset.zsh`, `backup.zsh`, `ui.zsh`) against temporary `XDG_CACHE_HOME`/`XDG_CONFIG_HOME` directories and fixture endpoint JSON, so it also doubles as a regression check on storage and backup file formats. `validate.py` is a zsh-free sanity check on the same logic and fixtures, useful for quickly confirming intended behavior without a zsh environment. Both print a pass/fail summary and exit non-zero on any failure.
+`validate.sh` sources the actual modules (`config.sh`, `utils.sh`, `provider_intel.sh`, `preset.sh`, `backup.sh`, `ui.sh`) against temporary `XDG_CACHE_HOME`/`XDG_CONFIG_HOME` directories and fixture endpoint JSON, so it also doubles as a regression check on storage and backup file formats, and on the fzf-UI-leak fix specifically (it asserts the numbered fallback table is never called from the router's orchestration layer, and is only reachable from `prompt_provider_order`'s no-fzf branch). It runs unmodified under any POSIX shell — there is no shell-specific validation script anymore. `validate.py` is a shell-free sanity check on the same logic and fixtures, useful for quickly confirming intended behavior without any shell dependency at all. Both print a pass/fail summary and exit non-zero on any failure.
+
+## Troubleshooting
+
+### I still see a numbered provider list above the fzf picker
+
+This was a bug in earlier versions: the fallback numbered list printed unconditionally before the provider picker ran, regardless of whether fzf was about to take over. It's fixed in this version — confirm you're running the current `router/ui.sh` and `router/router_engine.sh` (not a cached/old copy), and that `command -v fzf` succeeds in the same shell that runs `cr`. If `fzf` isn't on `PATH` at all, the numbered list is the *intended* fallback UI, not a leak — install fzf if you want the interactive picker instead.
 
 ## License
 

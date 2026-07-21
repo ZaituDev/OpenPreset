@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env sh
 # cr — the primary, active entrypoint into claude-router.
 #
 # Lives at launchers/cr. Only launchers inside launchers/ are active; the
@@ -8,25 +8,51 @@
 # Minimal launcher contract (see extras/launchers/template for the long form):
 #   1. (optional) set CLAUDE_ROUTER_DEFAULT_MODELS
 #   2. set CLAUDE_ROUTER_MODEL (usually "__pick__")
-#   3. source router/router_engine.zsh and call claude_router
+#   3. source router/router_engine.sh and call claude_router
 #   4. on success, exec claude "$@"
 #
 # cr applies no defaults and no behavioural overrides — it is the router's
 # own contract, demonstrated. Any other launcher is free to add workflow
 # flavor on top without touching router internals.
+#
+# Portable POSIX sh — works unmodified under bash, dash, ksh, zsh (sh mode),
+# and any other POSIX-compliant shell. No zsh required anywhere in this repo.
 
-set -euo pipefail
+set -eu
 
 # Resolve repo root regardless of whether this file lives in launchers/ or
-# extras/launchers/ — lets it be copied into launchers/ with zero edits.
-_THIS="${0:A}"
-if [[ "${_THIS:h:t}" == 'launchers' && "${_THIS:h:h:t}" == 'extras' ]]; then
-    REPO_DIR="${_THIS:h:h:h}"   # extras/launchers/cr -> repo root
+# extras/launchers/, and regardless of which POSIX shell is running it.
+# $0 is the most portable "path to this script" available; readlink -f
+# (or a manual symlink-following loop) resolves it to an absolute path.
+_resolve_self() {
+    _target="${1}"
+    while [ -h "${_target}" ]; do
+        _dir=$(cd -P "$(dirname "${_target}")" && pwd)
+        _target=$(readlink "${_target}")
+        case "${_target}" in
+            /*) : ;;
+            *) _target="${_dir}/${_target}" ;;
+        esac
+    done
+    _dir=$(cd -P "$(dirname "${_target}")" && pwd)
+    printf '%s/%s\n' "${_dir}" "$(basename "${_target}")"
+}
+
+_THIS=$(_resolve_self "$0")
+_THIS_DIR=$(dirname "${_THIS}")
+_THIS_DIR_NAME=$(basename "${_THIS_DIR}")
+_THIS_PARENT_DIR=$(dirname "${_THIS_DIR}")
+_THIS_PARENT_NAME=$(basename "${_THIS_PARENT_DIR}")
+
+if [ "${_THIS_DIR_NAME}" = 'launchers' ] && [ "${_THIS_PARENT_NAME}" = 'extras' ]; then
+    REPO_DIR=$(dirname "${_THIS_PARENT_DIR}")   # extras/launchers/cr -> repo root
 else
-    REPO_DIR="${_THIS:h:h}"     # launchers/cr        -> repo root
+    REPO_DIR="${_THIS_PARENT_DIR}"              # launchers/cr        -> repo root
 fi
 
-source "${REPO_DIR}/router/router_engine.zsh"
+export _ROUTER_DIR="${REPO_DIR}/router"
+# shellcheck source=../router/router_engine.sh
+. "${_ROUTER_DIR}/router_engine.sh"
 
 export CLAUDE_ROUTER_MODEL="__pick__"
 
