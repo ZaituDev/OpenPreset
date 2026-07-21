@@ -114,7 +114,7 @@ Without a launcher overriding it, the model picker's default offering is `openro
 
 When [fzf](https://github.com/junegunn/fzf) is installed, the router uses interactive menus with search, arrow-key navigation, multi-select, and live re-sorting. Without it, the router falls back to numbered-list menus with no loss of functionality (a one-time warning is printed the first time fzf is expected but absent).
 
-The two UIs are mutually exclusive at every prompt — whichever one is active is the *only* one that prints. Earlier versions of this tool had a bug where the plain numbered provider list (meant only for the no-fzf fallback) also printed above the interactive fzf picker even when fzf was installed and being used, so the fzf menu appeared underneath leftover fallback text it had no use for. That's fixed: each prompt now picks exactly one UI and renders only that one. See [Troubleshooting](#troubleshooting) if you're upgrading from an older copy and still see this.
+The two UIs are mutually exclusive at every prompt — whichever one is active is the *only* one that prints. Earlier versions of this tool had two related bugs here: the plain numbered provider list (meant only for the no-fzf fallback) printed even when fzf was in use, and separately, the boxed cost/latency/uptime/throughput reference table also printed unconditionally right before the fzf picker opened — even though every row inside the fzf picker already carries that same data inline. In practice this meant the full provider list could appear twice in a row, back to back, in two different formats, directly above the interactive picker. Both are fixed: the boxed table and the numbered list now print if and only if fzf is unavailable; when fzf is running, its own rows are the only place that data appears. See [Troubleshooting](#troubleshooting) if you're upgrading from an older copy and still see this.
 
 ```sh
 brew install fzf          # macOS
@@ -207,7 +207,7 @@ Defaults to `~/.config/claude-router/` and `~/.cache/claude-router/` when XDG va
 
 ### Provider intelligence table
 
-When creating or editing presets, the router displays a live provider metrics table derived from cached OpenRouter endpoint data. This table is shown once, identically, on both the fzf and no-fzf paths — it's reference information, not part of either picker's own UI:
+When creating or editing presets, the router displays a live provider metrics table derived from cached OpenRouter endpoint data. This table is now shown **only when fzf is unavailable** — with fzf present, its per-provider metrics are shown inline on each fzf row instead (see below), so the boxed table would just be a second, redundant printout of the same data immediately above the picker:
 
 ```
   Provider          In$/M     Out$/M    Uptime    Latency  Throughput
@@ -269,9 +269,9 @@ python3 router/validate.py   # re-implements and checks the same invariants in P
 
 ## Troubleshooting
 
-### I still see a numbered provider list above the fzf picker
+### I still see a provider list (numbered or boxed table) above the fzf picker
 
-This was a bug in earlier versions: the fallback numbered list printed unconditionally before the provider picker ran, regardless of whether fzf was about to take over. It's fixed in this version — confirm you're running the current `router/ui.sh` and `router/router_engine.sh` (not a cached/old copy), and that `command -v fzf` succeeds in the same shell that runs `cr`. If `fzf` isn't on `PATH` at all, the numbered list is the *intended* fallback UI, not a leak — install fzf if you want the interactive picker instead.
+This was a bug in earlier versions: both the numbered fallback list and the boxed cost/latency reference table printed unconditionally before the provider picker ran, regardless of whether fzf was about to take over — so the same provider list could appear twice, once as plain text and again inside the fzf box. It's fixed in this version — confirm you're running the current `router/ui.sh` and `router/router_engine.sh` (not a cached/old copy), and that `command -v fzf` succeeds in the same shell that runs `cr`. If `fzf` isn't on `PATH` at all, the boxed table and numbered list are the *intended* fallback UI, not a leak — install fzf if you want the interactive picker instead.
 
 ## License
 
