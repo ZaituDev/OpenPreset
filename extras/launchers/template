@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env sh
 # template — minimal launcher skeleton. INACTIVE as-is (it lives in
 # extras/launchers/). To activate it:
 #
@@ -14,40 +14,61 @@
 #      offered in the picker. Omit to use the router's built-in default.
 #   2. set CLAUDE_ROUTER_MODEL — usually "__pick__" to open the picker, or a
 #      specific model id to skip the picker entirely.
-#   3. source router/router_engine.zsh and call claude_router.
+#   3. source router/router_engine.sh and call claude_router.
 #   4. on success, exec claude — pass "$@" through unless your launcher has
 #      a specific reason to rewrite the arguments (see braining for that).
 #
 # Everything else — behavioural env vars, custom flags, prompts — is yours.
 # The router never reads anything launcher-specific; it only reads the
 # CLAUDE_ROUTER_* and ANTHROPIC_* env vars documented in the README.
+#
+# Portable POSIX sh — no zsh required. Copy this file as-is; the path
+# resolution below works unmodified after copying into launchers/.
 
-set -euo pipefail
+set -eu
 
-# Resolve repo root regardless of whether this file lives in launchers/ or
-# extras/launchers/ — works unmodified after copying into launchers/.
-_THIS="${0:A}"
-if [[ "${_THIS:h:t}" == 'launchers' && "${_THIS:h:h:t}" == 'extras' ]]; then
-    REPO_DIR="${_THIS:h:h:h}"   # extras/launchers/template -> repo root
+_resolve_self() {
+    _target="${1}"
+    while [ -h "${_target}" ]; do
+        _dir=$(cd -P "$(dirname "${_target}")" && pwd)
+        _target=$(readlink "${_target}")
+        case "${_target}" in
+            /*) : ;;
+            *) _target="${_dir}/${_target}" ;;
+        esac
+    done
+    _dir=$(cd -P "$(dirname "${_target}")" && pwd)
+    printf '%s/%s\n' "${_dir}" "$(basename "${_target}")"
+}
+
+_THIS=$(_resolve_self "$0")
+_THIS_DIR=$(dirname "${_THIS}")
+_THIS_DIR_NAME=$(basename "${_THIS_DIR}")
+_THIS_PARENT_DIR=$(dirname "${_THIS_DIR}")
+_THIS_PARENT_NAME=$(basename "${_THIS_PARENT_DIR}")
+
+if [ "${_THIS_DIR_NAME}" = 'launchers' ] && [ "${_THIS_PARENT_NAME}" = 'extras' ]; then
+    REPO_DIR=$(dirname "${_THIS_PARENT_DIR}")   # extras/launchers/template -> repo root
 else
-    REPO_DIR="${_THIS:h:h}"     # launchers/<name>          -> repo root
+    REPO_DIR="${_THIS_PARENT_DIR}"              # launchers/<name>          -> repo root
 fi
 
-# ── 1. (optional) default model list ──────────────────────────────────────
+# ── 1. (optional) default model list ────────────────────────────────────────
 
-# typeset -a _MY_DEFAULTS
-# _MY_DEFAULTS=("openrouter/auto")
-# export CLAUDE_ROUTER_DEFAULT_MODELS="${(F)_MY_DEFAULTS}"
+# export CLAUDE_ROUTER_DEFAULT_MODELS="openrouter/auto
+# some-other/model"
 
-# ── 2. model selection ─────────────────────────────────────────────────────
+# ── 2. model selection ───────────────────────────────────────────────────────
 
 export CLAUDE_ROUTER_MODEL="__pick__"
 
-# ── 3. load and run the router ────────────────────────────────────────────
+# ── 3. load and run the router ───────────────────────────────────────────────
 
-source "${REPO_DIR}/router/router_engine.zsh"
+export _ROUTER_DIR="${REPO_DIR}/router"
+# shellcheck source=../../router/router_engine.sh
+. "${_ROUTER_DIR}/router_engine.sh"
 claude_router || exit 1
 
-# ── 4. launch ──────────────────────────────────────────────────────────────
+# ── 4. launch ─────────────────────────────────────────────────────────────────
 
 exec claude "$@"

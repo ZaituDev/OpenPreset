@@ -1,9 +1,9 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env sh
 # braining — brainstorming launcher (inactive example, extras/launchers/)
 #
 # Only launchers inside launchers/ are considered active. This file is an
 # example of the sourced-launcher pattern; it works in place via:
-#   source extras/launchers/braining
+#   . extras/launchers/braining
 # To make it an active, discoverable launcher, copy or move it instead:
 #   cp extras/launchers/braining launchers/braining
 # Path resolution below is self-detecting and requires no edits either way.
@@ -13,42 +13,56 @@
 # Follows the minimal launcher contract (see extras/launchers/template):
 #   1. set CLAUDE_ROUTER_DEFAULT_MODELS
 #   2. set CLAUDE_ROUTER_MODEL
-#   3. source router/router_engine.zsh, call claude_router
+#   3. source router/router_engine.sh, call claude_router
 #   4. exec claude (here: a slash-command, not raw passthrough)
 # Everything else (default model list, behavioural env vars) is
 # workflow-specific and owned entirely by this launcher, not the router.
+#
+# Portable POSIX sh — no zsh required. This file is meant to be SOURCED
+# (". extras/launchers/braining" or ". launchers/braining"), so it does not
+# set -e/-u itself — that would alter the caller's shell options. It also
+# does not know its own path the way an executed script would ($0 would be
+# the calling shell's own name when sourced), so BASH_SOURCE is used when
+# available (bash/zsh), falling back to $0 for shells sourced via `.` where
+# $0 is still meaningful (dash, some ksh builds). If neither works, set
+# _ROUTER_DIR yourself before sourcing this file.
 
-_THIS="${${(%):-%x}:A}"
-if [[ "${_THIS:h:t}" == 'launchers' && "${_THIS:h:h:t}" == 'extras' ]]; then
-    _BRAINING_DIR="${_THIS:h:h:h}"   # extras/launchers/braining -> repo root
+if [ -n "${BASH_SOURCE:-}" ]; then
+    _BRAINING_SELF="${BASH_SOURCE}"
 else
-    _BRAINING_DIR="${_THIS:h:h}"     # launchers/braining        -> repo root
+    _BRAINING_SELF="$0"
+fi
+_BRAINING_THIS_DIR=$(cd -P "$(dirname "${_BRAINING_SELF}")" && pwd)
+_BRAINING_DIR_NAME=$(basename "${_BRAINING_THIS_DIR}")
+_BRAINING_PARENT_DIR=$(dirname "${_BRAINING_THIS_DIR}")
+_BRAINING_PARENT_NAME=$(basename "${_BRAINING_PARENT_DIR}")
+
+if [ "${_BRAINING_DIR_NAME}" = 'launchers' ] && [ "${_BRAINING_PARENT_NAME}" = 'extras' ]; then
+    _BRAINING_REPO_DIR=$(dirname "${_BRAINING_PARENT_DIR}")   # extras/launchers/braining -> repo root
+else
+    _BRAINING_REPO_DIR="${_BRAINING_PARENT_DIR}"              # launchers/braining        -> repo root
 fi
 
-# ── Default model list ────────────────────────────────────────────────────────
-# One model per line. User additions are managed interactively or stored in
-# $XDG_CONFIG_HOME/claude-router/user-models.txt.
+# ── Default model list ───────────────────────────────────────────────────────
+# Newline-joined string (POSIX sh has no arrays). User additions are managed
+# interactively or stored in $XDG_CONFIG_HOME/claude-router/user-models.txt.
 
-typeset -a _BRAINING_DEFAULTS
-_BRAINING_DEFAULTS=(
-    "openrouter/auto"
-    "cohere/north-mini-code"
-    "deepseek/deepseek-v4-flash"
-)
+export CLAUDE_ROUTER_DEFAULT_MODELS="openrouter/auto
+cohere/north-mini-code
+deepseek/deepseek-v4-flash"
 
-# ── Model selection ───────────────────────────────────────────────────────────
-# Pass the default list to the router as a newline-joined env var, then signal
-# the router to run the interactive picker.
+# ── Model selection ──────────────────────────────────────────────────────────
 
-export CLAUDE_ROUTER_DEFAULT_MODELS="${(F)_BRAINING_DEFAULTS}"
 export CLAUDE_ROUTER_MODEL="__pick__"
 
-# ── Load and run the router ───────────────────────────────────────────────────
+# ── Load and run the router ──────────────────────────────────────────────────
 
-source "${_BRAINING_DIR}/router/router_engine.zsh"  # _BRAINING_DIR = repo root
+export _ROUTER_DIR="${_BRAINING_REPO_DIR}/router"
+# shellcheck source=../../router/router_engine.sh
+. "${_ROUTER_DIR}/router_engine.sh"
 claude_router || return 1
 
-# ── Claude behaviour ──────────────────────────────────────────────────────────
+# ── Claude behaviour ─────────────────────────────────────────────────────────
 
 export CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1
 export CLAUDE_CODE_PLAN_MODE_INTERVIEW_PHASE=1
@@ -61,7 +75,7 @@ export SUPERPOWERS_MODIFIER="You are acting EXCLUSIVELY as a Feature Brainstormi
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 
-if [[ $# -eq 0 ]]; then
+if [ "$#" -eq 0 ]; then
     exec claude "/brainstorming"
 else
     exec claude "/brainstorming $*"
