@@ -490,6 +490,38 @@ _assert_contains "prompt_provider_order guards fzf check before table" \
 guarded_call=$(printf '%s' "${prompt_fn_body}" | grep -A2 '_ui_warn_no_fzf' | grep -c 'show_provider_table')
 _assert "show_provider_table call sits in the no-fzf branch only" "${guarded_call}" "1"
 
+# ── Test group 15: boxed intelligence-table leak regression (second pass) ────
+#
+# The first pass fixed the plain numbered "#  Provider" index list. A second,
+# distinct leak remained: show_provider_intelligence's BOXED table (cost/
+# uptime/latency/throughput per provider) also printed unconditionally right
+# before the fzf picker opened — and every fzf row already carries that same
+# data inline (see provider_intel_fzf_line). So with fzf present, the same
+# provider list appeared twice in a row: once as a boxed table, once as the
+# fzf picker. This is a behavioral test, not just a source grep: it calls
+# show_provider_intelligence for real with _ui_has_fzf faked both ways and
+# checks what actually gets printed to stderr in each case.
+
+printf '\n── boxed intelligence-table leak regression ─────────────────────\n'
+
+sample_intel='[{"provider_name":"DeepSeek","pricing_prompt":"0.00000014","pricing_completion":"0.00000028","uptime":99.87,"latency_p50":0.584,"throughput_p50":120.5}]'
+
+# Case 1: fzf reports available -> table must NOT print.
+_ui_has_fzf() { return 0; }
+fzf_present_output=$(show_provider_intelligence "${sample_intel}" 2>&1)
+_assert "boxed table does NOT print when fzf is available" "${fzf_present_output}" ""
+
+# Case 2: fzf reports absent -> table MUST print (still needed as reference
+# for the numbered-index fallback prompt).
+_ui_has_fzf() { return 1; }
+fzf_absent_output=$(show_provider_intelligence "${sample_intel}" 2>&1)
+_assert_contains "boxed table DOES print when fzf is absent" "${fzf_absent_output}" "Provider Intelligence"
+_assert_contains "boxed table (no-fzf) contains provider row" "${fzf_absent_output}" "DeepSeek"
+
+# Restore the real implementation for anything sourced after this point.
+unset -f _ui_has_fzf
+. "${_ROOT}/router/ui.sh"
+
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
 rm -rf "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"

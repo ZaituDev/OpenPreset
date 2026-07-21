@@ -297,13 +297,17 @@ EOF
 
 # ── Provider ordering ────────────────────────────────────────────────────────
 #
-# BUGFIX: this function used to call show_provider_intelligence() AND
-# show_provider_table() unconditionally, then prompt_provider_order() — which
-# meant the plain numbered "#  Provider" reference table (meant only for the
-# no-fzf fallback) was printed even when fzf was about to run its own
-# picker, leaking that fallback UI on top of the real fzf menu. The numbered
-# table now lives ONLY inside prompt_provider_order()'s no-fzf branch (see
-# ui.sh), so it appears if and only if fzf is actually absent.
+# BUGFIX: _router_choose_provider_order used to call show_provider_intelligence()
+# and show_provider_table() unconditionally, then prompt_provider_order() —
+# so both the boxed cost/latency reference table AND the plain numbered
+# "#  Provider" index list printed even when fzf was about to open its own
+# picker right after, which already shows the same per-provider metrics
+# inline on every row. That meant the same provider list appeared twice in a
+# row, back to back, in two different formats — the actual leak. Both
+# show_provider_intelligence() and show_provider_table() now self-gate on
+# fzf availability (see ui.sh): each prints only on the code path that
+# actually needs it, so exactly one view of the provider list is ever shown
+# before the picker runs.
 
 _router_choose_provider_order() {
     if [ -n "${CLAUDE_ROUTER_PROFILE}" ]; then
@@ -321,9 +325,9 @@ _router_choose_provider_order() {
 
     print_header "${_ROUTER_MODEL}"
 
-    # Show the intelligence table once (no network call — reads from cache).
-    # This is reference data shown identically on both the fzf and no-fzf
-    # paths; it is not the fallback UI itself.
+    # show_provider_intelligence self-gates: it only prints when fzf is
+    # unavailable (see ui.sh). When fzf is present, this call is a no-op and
+    # the fzf picker's own per-row metrics are the only view shown.
     show_provider_intelligence "${_ROUTER_PROVIDER_INTEL:-[]}"
 
     _cpo_ifs_backup="${IFS}"

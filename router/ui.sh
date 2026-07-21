@@ -295,14 +295,23 @@ prompt_routing_mode() {
 
 # ── Provider intelligence table display ──────────────────────────────────────
 #
-# Shown once, before provider ordering, regardless of fzf/no-fzf — this is
-# read-only reference info, not part of either picker's own UI, so showing it
-# once is correct in both paths. It is NOT the bug; see prompt_provider_order
-# below for the actual fix (the numbered "#  Provider" reference list must
-# only appear on the no-fzf path, since it belongs to that fallback only).
+# BUGFIX (second pass): this table is now shown ONLY on the no-fzf path.
+# When fzf is available, every row in the fzf picker already carries the
+# same cost/uptime/latency/throughput fields inline (see
+# provider_intel_fzf_line in provider_intel.sh) — printing this boxed table
+# first, then opening fzf with identical data one line format later, means
+# the same 18-20 rows appear twice in a row on screen. That double-print is
+# the actual leak: not the numbered index list (fixed in the first pass),
+# but this table itself. The full detailed view remains available; it just
+# no longer prints unconditionally ahead of a picker that already shows it.
 
 show_provider_intelligence() {
     _intel_arr="${1:-[]}"
+
+    if _ui_has_fzf; then
+        unset _intel_arr
+        return 0
+    fi
 
     _count=$(printf '%s' "${_intel_arr}" | jq 'length' 2>/dev/null || printf '%s' 0)
     [ "${_count}" -eq 0 ] && { unset _intel_arr _count; return 0; }
