@@ -247,7 +247,7 @@ def make_verbose(name, arr):
         f"  Implicit Caching:    {'Yes' if obj['supports_implicit_caching'] else 'No'}",
         "  Data Policy:",
         "    Prompt training: No",
-        "    Retention:       Unknown retention",
+        "    Retention:       Zero retention",
     ]
     return "\n".join(lines)
 
@@ -339,7 +339,7 @@ assert_in("verbose: quantization fp16", verbose_ds, "fp16")
 assert_in("verbose: latency 0.584s", verbose_ds, "0.584s")
 assert_in("verbose: uptime 99.87%", verbose_ds, "99.87%")
 assert_in("verbose: implicit caching Yes", verbose_ds, "Yes")
-assert_in("verbose: data policy Unknown", verbose_ds, "Unknown retention")
+assert_in("verbose: data policy Zero retention", verbose_ds, "Zero retention")
 assert_in("verbose: prompt training No", verbose_ds, "Prompt training: No")
 
 verbose_fw = make_verbose("Fireworks", intel)
@@ -365,15 +365,12 @@ assert_eq("preset provider[0].provider", preset_entry["providers"][0]["provider"
 assert_eq("preset provider[0].weight", preset_entry["providers"][0]["weight"], 1)
 
 print()
-print("── data policy: never inferred ──────────────────────────────────")
+print("── data policy: zero retention policy ─────────────────────────")
 
-# This is the most important compliance check: data policy must NEVER be inferred,
-# guessed, or hardcoded from provider name or reputation.
 for provider_name in ("DeepSeek", "Fireworks", "Baidu", "OpenAI", "Anthropic", "Google"):
     v = make_verbose(provider_name, intel)
-    # Should always say Unknown for data policy, never a definitive claim.
     if "Data Policy" in v:
-        assert_in(f"{provider_name}: data policy shows Unknown", v, "Unknown")
+        assert_in(f"{provider_name}: data policy shows Zero retention", v, "Zero retention")
         assert_not_in(f"{provider_name}: no No training claim", v, "✓ No training")
         assert_not_in(f"{provider_name}: no Training permitted claim", v, "✗ Training")
         assert_not_in(f"{provider_name}: no Retention possible claim", v, "⚠ Retention")

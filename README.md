@@ -249,7 +249,7 @@ Sorting affects only the picker's display order. It never modifies stored preset
 
 ### Backup and restore
 
-From the preset manager (Preset mode → export/import, whichever your active UI calls it):
+From the preset manager (`Ctrl+x` to export, `Ctrl+i` to import in fzf mode):
 
 - **Export** writes a single versioned JSON file containing all locally tracked user models and preset metadata. This is a read of local state only — no network calls are made.
 - **Import** is a networked operation: it supports `merge` (keep existing, add imported) and `replace` (overwrite all) modes for local metadata, and for every imported preset it also calls OpenRouter's API to recreate that preset on your account. A bad or unexpected import can create or overwrite real presets on OpenRouter, not just local files.

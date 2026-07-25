@@ -43,13 +43,45 @@ fi
 
 claude_router() {
     _router_validate_environment || return 1
-    _router_select_model         || return 1
-    _router_select_routing_mode  || return 1
 
-    case "${_ROUTER_MODE}" in
-        direct) _router_run_direct ;;
-        preset) _router_run_preset || return 1 ;;
-    esac
+    _step=1
+    while true; do
+        case "${_step}" in
+            1)
+                _router_select_model || return 1
+                _step=2
+                ;;
+            2)
+                if ! _router_select_routing_mode; then
+                    if [ "${CLAUDE_ROUTER_MODEL}" != '__pick__' ]; then
+                        return 1
+                    fi
+                    _step=1
+                    continue
+                fi
+                _step=3
+                ;;
+            3)
+                case "${_ROUTER_MODE}" in
+                    direct)
+                        _router_run_direct
+                        return 0
+                        ;;
+                    preset)
+                        if _router_run_preset; then
+                            return 0
+                        fi
+                        if [ -n "${CLAUDE_ROUTER_MODE:-}" ] && [ "${CLAUDE_ROUTER_MODE}" != '__pick__' ]; then
+                            _step=1
+                        else
+                            _step=2
+                        fi
+                        continue
+                        ;;
+                esac
+                ;;
+        esac
+    done
 }
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -227,7 +259,7 @@ _router_run_preset() {
             delete)      _router_preset_delete "${_ref}"  || true ;;
             __import__)  _router_preset_import           || true ;;
             __export__)  _router_preset_export           || true ;;
-            __back__)    unset _presets_json _action _verb _ref; return 0 ;;
+            __back__)    unset _presets_json _action _verb _ref; return 1 ;;
             *)
                 printf '%s\n' "BUG: unexpected preset action [${_verb}]" >&2
                 unset _presets_json _action _verb _ref

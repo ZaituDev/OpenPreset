@@ -57,11 +57,11 @@ _ui_fzf_model_selection() {
         printf '%s' "${_fzf_input}" \
         | fzf \
             --prompt '  Model › ' \
-            --height '~40%' \
+            --height '~80%' \
             --layout reverse \
             --border rounded \
             --no-preview \
-            --header '  ↑↓ navigate · Enter select · / search · Esc cancel' \
+            --header '  ↑↓ navigate · Enter select · / search · Esc back' \
             2>/dev/tty
     ) || { unset _fzf_input _result; return 1; }
 
@@ -169,7 +169,7 @@ _ui_fzf_manage_menu() {
         printf '%s' "${_fzf_input}" \
         | fzf \
             --prompt '  Delete saved model › ' \
-            --height '~30%' \
+            --height '~60%' \
             --layout reverse \
             --border rounded \
             --no-preview \
@@ -250,11 +250,11 @@ _ui_fzf_routing_mode() {
             '🎯  Preset  — provider ordering + OpenRouter preset' \
         | fzf \
             --prompt '  Launch mode › ' \
-            --height '~20%' \
+            --height '~40%' \
             --layout reverse \
             --border rounded \
             --no-preview \
-            --header '  Enter to select · Esc cancel' \
+            --header '  Enter to select · Esc back' \
             2>/dev/tty
     ) || { unset _result; return 1; }
 
@@ -388,7 +388,7 @@ _ui_fzf_provider_order() {
 
     printf '\n' >&2
     printf '  ── Provider Selection ──────────────────────────────────────\n' >&2
-    printf '  TAB to select · Enter to confirm · Esc to cancel\n' >&2
+    printf '  TAB to select · Enter to confirm · Esc to go back\n' >&2
     printf '  Sort: s=cost  l=latency  u=uptime  t=throughput  n=name  v=info\n' >&2
     printf '  Select in your desired priority order (first = highest priority)\n' >&2
     printf '\n' >&2
@@ -397,12 +397,12 @@ _ui_fzf_provider_order() {
         fzf \
             --prompt '  Providers › ' \
             --multi \
-            --height '~60%' \
+            --height '~100%' \
             --layout reverse \
             --border rounded \
             --preview ". \"${_ROUTER_DIR}/provider_intel.sh\"; provider_intel_verbose {1} \"\$(cat ${_tmp_intel})\"" \
             --preview-window 'right:50%:hidden' \
-            --header '  TAB select · ↑↓ nav · s/l/u/t/n sort · v info card · Enter confirm' \
+            --header '  TAB select · ↑↓ nav · s/l/u/t/n sort · v info card · Esc back' \
             --bind "s:reload(cat ${_tmp_cost})" \
             --bind "l:reload(cat ${_tmp_lat})" \
             --bind "u:reload(cat ${_tmp_up})" \
@@ -519,10 +519,7 @@ _ui_fzf_preset_menu() {
     _total=$(printf '%s' "${_presets_json}" | jq 'length')
 
     # Build input: tagged lines so first token carries type:payload.
-    _fzf_input="ACTION:__create__  ➕  Create new preset
-ACTION:__import__  📥  Import backup
-ACTION:__export__  📤  Export backup
-ACTION:__back__    ⬅   Back to model selection"
+    _fzf_input="ACTION:__create__  ➕  Create new preset"
 
     if [ "${_total}" -gt 0 ]; then
         _fzf_input="${_fzf_input}
@@ -541,23 +538,47 @@ PRESET:${_slug}  ⚡ ${_name}  [${_summary}]"
     fi
 
     # Step 1: pick item. --with-nth hides the tag prefix from display.
-    _raw_pick=$(
+    _fzf_out=$(
         printf '%s' "${_fzf_input}" \
         | fzf \
             --prompt "  Presets › " \
-            --height '~50%' \
+            --height '~100%' \
             --layout reverse \
             --border rounded \
             --no-preview \
             --with-nth '2..' \
             --delimiter ' ' \
-            --header '  Enter to select · Esc cancel' \
+            --header '  Enter select · Ctrl+i import · Ctrl+x export · Esc back' \
+            --expect=ctrl-i,ctrl-x \
             2>/dev/tty
-    ) || { printf '%s\n' '__back__'; unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick; return 0; }
+    )
+    _rc=$?
+
+    if [ "${_rc}" -ne 0 ]; then
+        printf '%s\n' '__back__'
+        unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc
+        return 0
+    fi
+
+    _key=$(printf '%s' "${_fzf_out}" | head -n 1)
+    _raw_pick=$(printf '%s' "${_fzf_out}" | tail -n +2)
+
+    case "${_key}" in
+        ctrl-i*|ctrl-I*)
+            printf '%s\n' '__import__'
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick
+            return 0
+            ;;
+        ctrl-x*|ctrl-X*)
+            printf '%s\n' '__export__'
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick
+            return 0
+            ;;
+    esac
 
     if [ -z "${_raw_pick}" ]; then
         printf '%s\n' '__back__'
-        unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick
+        unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick
         return 0
     fi
 
@@ -569,7 +590,7 @@ PRESET:${_slug}  ⚡ ${_name}  [${_summary}]"
     case "${_tag}" in
         ACTION)
             printf '%s\n' "${_payload}"
-            unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick _first_token _tag _payload
             return 0
             ;;
         PRESET)
@@ -583,13 +604,13 @@ PRESET:${_slug}  ⚡ ${_name}  [${_summary}]"
                     "delete  🗑  Delete" \
                 | fzf \
                     --prompt "  Action › " \
-                    --height '~25%' \
+                    --height '~50%' \
                     --layout reverse \
                     --border rounded \
                     --no-preview \
                     --with-nth '2..' \
                     --delimiter ' ' \
-                    --header '  Esc to go back' \
+                    --header '  Enter select · Esc back' \
                     2>/dev/tty
             ) || { printf '%s\n' '__back__'; unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_line; return 0; }
 

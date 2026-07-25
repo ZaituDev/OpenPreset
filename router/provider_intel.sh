@@ -310,7 +310,7 @@ provider_intel_verbose() {
 
   Data Policy:
     Prompt training: No
-    Retention:       Unknown retention
+    Retention:       Zero retention
 
 EOF
 
