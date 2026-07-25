@@ -2,10 +2,22 @@
 # config.sh — constants only, nothing executable
 # POSIX sh. No bashisms, no zsh-isms. Sourced by router_engine.sh.
 
+# ── openpreset Version & Repo Info ───────────────────────────────────────
+
+OPENPRESET_VERSION="1.0.0"
+OPENPRESET_REPO="zaidsubhani135/claude-router"
+
 # ── XDG-compliant paths ────────────────────────────────────────────────────
 
-CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/claude-router"
-CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/claude-router"
+_legacy_config="${XDG_CONFIG_HOME:-${HOME}/.config}/claude-router"
+if [ -d "${_legacy_config}" ] && [ ! -d "${XDG_CONFIG_HOME:-${HOME}/.config}/openpreset" ]; then
+    CONFIG_DIR="${_legacy_config}"
+else
+    CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/openpreset"
+fi
+unset _legacy_config
+
+CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/openpreset"
 
 # ── Cache files ─────────────────────────────────────────────────────────────
 
@@ -42,3 +54,4 @@ fi
 # ── Backup ──────────────────────────────────────────────────────────────────
 
 BACKUP_SCHEMA_VERSION="1"
+

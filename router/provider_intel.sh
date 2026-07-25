@@ -308,10 +308,6 @@ provider_intel_verbose() {
   Uptime (30m):        ${_uptime}
   Implicit Caching:    ${_implicit}
 
-  Data Policy:
-    Prompt training: No
-    Retention:       Unknown retention
-
 EOF
 
     unset _name _arr _obj _ctx _max_out _quant _lat_p50 _lat_p90 _tput_p50 _uptime _implicit _p_prompt _p_compl _p_req

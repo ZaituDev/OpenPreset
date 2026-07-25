@@ -53,24 +53,42 @@ _ui_fzf_model_selection() {
     _fzf_input="${_fzf_input}+ Add custom model…
 ⚙ Manage saved models…"
 
-    _result=$(
+    _fzf_out=$(
         printf '%s' "${_fzf_input}" \
         | fzf \
             --prompt '  Model › ' \
-            --height '~40%' \
+            --height '~80%' \
             --layout reverse \
             --border rounded \
             --no-preview \
-            --header '  ↑↓ navigate · Enter select · / search · Esc cancel' \
+            --header '  ↑↓ navigate · Enter select · / search · Esc back · Ctrl+C cancel' \
+            --expect=ctrl-c \
             2>/dev/tty
-    ) || { unset _fzf_input _result; return 1; }
+    )
+    _rc=$?
+
+    if [ "${_rc}" -ne 0 ]; then
+        unset _fzf_input _fzf_out _rc _m
+        return 1
+    fi
+
+    _key=$(printf '%s' "${_fzf_out}" | head -n 1)
+    _result=$(printf '%s' "${_fzf_out}" | tail -n +2)
+
+    case "${_key}" in
+        ctrl-c*|ctrl-C*)
+            printf '%s\n' '__cancel__'
+            unset _fzf_input _fzf_out _rc _key _result _m
+            return 0
+            ;;
+    esac
 
     case "${_result}" in
         '+ Add custom model…') printf '%s\n' '__custom__' ;;
         '⚙ Manage saved models…') printf '%s\n' '__manage__' ;;
         *) printf '%s\n' "${_result}" ;;
     esac
-    unset _fzf_input _result _m
+    unset _fzf_input _fzf_out _rc _key _result _m
 }
 
 show_model_list() {
@@ -165,26 +183,45 @@ _ui_fzf_manage_menu() {
     done
     _fzf_input="${_fzf_input}← Back"
 
-    _result=$(
+    _fzf_out=$(
         printf '%s' "${_fzf_input}" \
         | fzf \
             --prompt '  Delete saved model › ' \
-            --height '~30%' \
+            --height '~60%' \
             --layout reverse \
             --border rounded \
             --no-preview \
-            --header '  Select a model to DELETE it · Esc / Back to return' \
+            --header '  Select a model to DELETE it · Esc back · Ctrl+C cancel' \
+            --expect=ctrl-c \
             2>/dev/tty
-    ) || { printf '%s\n' '__back__'; unset _fzf_input _result _m; return 0; }
+    )
+    _rc=$?
+
+    if [ "${_rc}" -ne 0 ]; then
+        printf '%s\n' '__back__'
+        unset _fzf_input _fzf_out _rc _m
+        return 0
+    fi
+
+    _key=$(printf '%s' "${_fzf_out}" | head -n 1)
+    _result=$(printf '%s' "${_fzf_out}" | tail -n +2)
+
+    case "${_key}" in
+        ctrl-c*|ctrl-C*)
+            printf '%s\n' '__cancel__'
+            unset _fzf_input _fzf_out _rc _key _result _m
+            return 0
+            ;;
+    esac
 
     if [ "${_result}" = '← Back' ] || [ -z "${_result}" ]; then
         printf '%s\n' '__back__'
-        unset _fzf_input _result _m
+        unset _fzf_input _fzf_out _rc _key _result _m
         return 0
     fi
 
     printf '%s\n' "${_result}"
-    unset _fzf_input _result _m
+    unset _fzf_input _fzf_out _rc _key _result _m
 }
 
 # Prints a model string to delete | "__back__"
@@ -244,26 +281,44 @@ show_manage_menu() {
 # ── Routing mode ─────────────────────────────────────────────────────────────
 
 _ui_fzf_routing_mode() {
-    _result=$(
+    _fzf_out=$(
         printf '%s\n%s\n' \
             '🚀  Direct  — export model directly, no routing' \
             '🎯  Preset  — provider ordering + OpenRouter preset' \
         | fzf \
             --prompt '  Launch mode › ' \
-            --height '~20%' \
+            --height '~40%' \
             --layout reverse \
             --border rounded \
             --no-preview \
-            --header '  Enter to select · Esc cancel' \
+            --header '  Enter to select · Esc back · Ctrl+C cancel' \
+            --expect=ctrl-c \
             2>/dev/tty
-    ) || { unset _result; return 1; }
+    )
+    _rc=$?
+
+    if [ "${_rc}" -ne 0 ]; then
+        unset _fzf_out _rc
+        return 1
+    fi
+
+    _key=$(printf '%s' "${_fzf_out}" | head -n 1)
+    _result=$(printf '%s' "${_fzf_out}" | tail -n +2)
+
+    case "${_key}" in
+        ctrl-c*|ctrl-C*)
+            printf '%s\n' '__cancel__'
+            unset _fzf_out _rc _key _result
+            return 0
+            ;;
+    esac
 
     case "${_result}" in
         '🚀'*) printf '%s\n' 'direct' ;;
         '🎯'*) printf '%s\n' 'preset' ;;
-        *)     unset _result; return 1 ;;
+        *)     unset _fzf_out _rc _key _result; return 1 ;;
     esac
-    unset _result
+    unset _fzf_out _rc _key _result
 }
 
 # Prints "direct" or "preset"
@@ -388,21 +443,22 @@ _ui_fzf_provider_order() {
 
     printf '\n' >&2
     printf '  ── Provider Selection ──────────────────────────────────────\n' >&2
-    printf '  TAB to select · Enter to confirm · Esc to cancel\n' >&2
+    printf '  TAB to select · Enter to confirm · Esc to go back\n' >&2
     printf '  Sort: s=cost  l=latency  u=uptime  t=throughput  n=name  v=info\n' >&2
     printf '  Select in your desired priority order (first = highest priority)\n' >&2
     printf '\n' >&2
 
-    _selected_lines=$(
+    _fzf_out=$(
         fzf \
             --prompt '  Providers › ' \
             --multi \
-            --height '~60%' \
+            --height '~100%' \
             --layout reverse \
             --border rounded \
             --preview ". \"${_ROUTER_DIR}/provider_intel.sh\"; provider_intel_verbose {1} \"\$(cat ${_tmp_intel})\"" \
             --preview-window 'right:50%:hidden' \
-            --header '  TAB select · ↑↓ nav · s/l/u/t/n sort · v info card · Enter confirm' \
+            --header '  TAB select · ↑↓ nav · s/l/u/t/n sort · v info card · Esc back · Ctrl+C cancel' \
+            --expect=ctrl-c \
             --bind "s:reload(cat ${_tmp_cost})" \
             --bind "l:reload(cat ${_tmp_lat})" \
             --bind "u:reload(cat ${_tmp_up})" \
@@ -417,9 +473,19 @@ _ui_fzf_provider_order() {
     rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}" "${_tmp_intel}"
 
     if [ "${_rc}" -ne 0 ]; then
-        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _selected_lines _rc
+        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _fzf_out _rc
         return 1
     fi
+
+    _key=$(printf '%s' "${_fzf_out}" | head -n 1)
+    _selected_lines=$(printf '%s' "${_fzf_out}" | tail -n +2)
+
+    case "${_key}" in
+        ctrl-c*|ctrl-C*)
+            unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _fzf_out _rc _key _selected_lines
+            return 2
+            ;;
+    esac
     if [ -z "${_selected_lines}" ]; then
         warn "No providers selected."
         unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _selected_lines _rc
@@ -519,10 +585,7 @@ _ui_fzf_preset_menu() {
     _total=$(printf '%s' "${_presets_json}" | jq 'length')
 
     # Build input: tagged lines so first token carries type:payload.
-    _fzf_input="ACTION:__create__  ➕  Create new preset
-ACTION:__import__  📥  Import backup
-ACTION:__export__  📤  Export backup
-ACTION:__back__    ⬅   Back to model selection"
+    _fzf_input="ACTION:__create__  ➕  Create new preset"
 
     if [ "${_total}" -gt 0 ]; then
         _fzf_input="${_fzf_input}
@@ -541,23 +604,52 @@ PRESET:${_slug}  ⚡ ${_name}  [${_summary}]"
     fi
 
     # Step 1: pick item. --with-nth hides the tag prefix from display.
-    _raw_pick=$(
+    _fzf_out=$(
         printf '%s' "${_fzf_input}" \
         | fzf \
             --prompt "  Presets › " \
-            --height '~50%' \
+            --height '~100%' \
             --layout reverse \
             --border rounded \
             --no-preview \
             --with-nth '2..' \
             --delimiter ' ' \
-            --header '  Enter to select · Esc cancel' \
+            --header '  Enter select · Ctrl+i import · Ctrl+x export · Esc back · Ctrl+C cancel' \
+            --expect=ctrl-i,ctrl-x,ctrl-c \
             2>/dev/tty
-    ) || { printf '%s\n' '__back__'; unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick; return 0; }
+    )
+    _rc=$?
+
+    if [ "${_rc}" -ne 0 ]; then
+        printf '%s\n' '__back__'
+        unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc
+        return 0
+    fi
+
+    _key=$(printf '%s' "${_fzf_out}" | head -n 1)
+    _raw_pick=$(printf '%s' "${_fzf_out}" | tail -n +2)
+
+    case "${_key}" in
+        ctrl-c*|ctrl-C*)
+            printf '%s\n' '__cancel__'
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick
+            return 0
+            ;;
+        ctrl-i*|ctrl-I*)
+            printf '%s\n' '__import__'
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick
+            return 0
+            ;;
+        ctrl-x*|ctrl-X*)
+            printf '%s\n' '__export__'
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick
+            return 0
+            ;;
+    esac
 
     if [ -z "${_raw_pick}" ]; then
         printf '%s\n' '__back__'
-        unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick
+        unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick
         return 0
     fi
 
@@ -569,13 +661,13 @@ PRESET:${_slug}  ⚡ ${_name}  [${_summary}]"
     case "${_tag}" in
         ACTION)
             printf '%s\n' "${_payload}"
-            unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _fzf_out _rc _key _raw_pick _first_token _tag _payload
             return 0
             ;;
         PRESET)
             # Step 2: pick action for this preset.
             _slug="${_payload}"
-            _action_line=$(
+            _action_out=$(
                 printf '%s\n%s\n%s\n%s\n' \
                     "launch  ▶  Launch this preset" \
                     "edit    ✏  Edit provider order" \
@@ -583,24 +675,42 @@ PRESET:${_slug}  ⚡ ${_name}  [${_summary}]"
                     "delete  🗑  Delete" \
                 | fzf \
                     --prompt "  Action › " \
-                    --height '~25%' \
+                    --height '~50%' \
                     --layout reverse \
                     --border rounded \
                     --no-preview \
                     --with-nth '2..' \
                     --delimiter ' ' \
-                    --header '  Esc to go back' \
+                    --header '  Enter select · Esc back · Ctrl+C cancel' \
+                    --expect=ctrl-c \
                     2>/dev/tty
-            ) || { printf '%s\n' '__back__'; unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_line; return 0; }
+            )
+            _rc2=$?
+            if [ "${_rc2}" -ne 0 ]; then
+                printf '%s\n' '__back__'
+                unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_out _rc2
+                return 0
+            fi
+
+            _key2=$(printf '%s' "${_action_out}" | head -n 1)
+            _action_line=$(printf '%s' "${_action_out}" | tail -n +2)
+
+            case "${_key2}" in
+                ctrl-c*|ctrl-C*)
+                    printf '%s\n' '__cancel__'
+                    unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_out _rc2 _key2 _action_line
+                    return 0
+                    ;;
+            esac
 
             _verb="${_action_line%%[[:space:]]*}"
             if [ -z "${_verb}" ]; then
                 printf '%s\n' '__back__'
-                unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_line _verb
+                unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_out _rc2 _key2 _action_line _verb
                 return 0
             fi
             printf '%s:%s\n' "${_verb}" "${_slug}"
-            unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_line _verb
+            unset _model _presets_json _total _fzf_input _i _name _slug _summary _raw_pick _first_token _tag _payload _action_out _rc2 _key2 _action_line _verb
             return 0
             ;;
         *)
@@ -784,7 +894,7 @@ prompt_import_file() {
 
 prompt_import_mode() {
     if _ui_has_fzf; then
-        _result=$(
+        _fzf_out=$(
             printf '%s\n%s\n' \
                 'merge   — keep existing, add imported' \
                 'replace — overwrite all existing data' \
@@ -794,11 +904,30 @@ prompt_import_mode() {
                 --layout reverse \
                 --border rounded \
                 --no-preview \
+                --header '  Enter select · Esc back · Ctrl+C cancel' \
+                --expect=ctrl-c \
                 2>/dev/tty
-        ) || { unset _result; return 1; }
+        )
+        _rc=$?
+        if [ "${_rc}" -ne 0 ]; then
+            unset _fzf_out _rc
+            return 1
+        fi
+
+        _key=$(printf '%s' "${_fzf_out}" | head -n 1)
+        _result=$(printf '%s' "${_fzf_out}" | tail -n +2)
+
+        case "${_key}" in
+            ctrl-c*|ctrl-C*)
+                printf '%s\n' '__cancel__'
+                unset _fzf_out _rc _key _result
+                return 0
+                ;;
+        esac
+
         case "${_result}" in
-            merge*)   printf '%s\n' 'merge';   unset _result; return 0 ;;
-            replace*) printf '%s\n' 'replace'; unset _result; return 0 ;;
+            merge*)   printf '%s\n' 'merge';   unset _fzf_out _rc _key _result; return 0 ;;
+            replace*) printf '%s\n' 'replace'; unset _fzf_out _rc _key _result; return 0 ;;
         esac
     fi
 
