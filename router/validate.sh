@@ -201,10 +201,12 @@ FIXTURE_EMPTY=$(cat << 'FIXTURE'
 FIXTURE
 )
 
-FIXTURE_CACHE="${XDG_CACHE_HOME}/claude-router/endpoints/deepseek-deepseek-v4-flash.json"
+mkdir -p "${CACHE_DIR}/endpoints"
+
+FIXTURE_CACHE="${CACHE_DIR}/endpoints/deepseek-deepseek-v4-flash.json"
 printf '%s' "${FIXTURE_ENDPOINTS}" > "${FIXTURE_CACHE}"
 
-EMPTY_CACHE="${XDG_CACHE_HOME}/claude-router/endpoints/test-empty.json"
+EMPTY_CACHE="${CACHE_DIR}/endpoints/test-empty.json"
 printf '%s' "${FIXTURE_EMPTY}" > "${EMPTY_CACHE}"
 
 # ── Test group 1: _pi_cache_path ─────────────────────────────────────────────

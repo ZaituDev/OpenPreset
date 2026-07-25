@@ -5,9 +5,14 @@
 
 # ── Internal helper ──────────────────────────────────────────────────────────
 
+_get_or_token() {
+    printf '%s' "${OPENROUTER_API_KEY:-${ANTHROPIC_AUTH_TOKEN:-}}"
+}
+
 _or_curl() {
+    _token=$(_get_or_token)
     curl --silent --fail \
-         --header "Authorization: Bearer ${ANTHROPIC_AUTH_TOKEN}" \
+         --header "Authorization: Bearer ${_token}" \
          --header "Content-Type: application/json" \
          "$@"
 }
@@ -60,15 +65,16 @@ delete_preset() {
     return "${_dp_rc}"
 }
 
-# Verify ANTHROPIC_AUTH_TOKEN is accepted by OpenRouter.
+# Verify API token is accepted by OpenRouter.
 verify_api_key() {
-    [ -n "${ANTHROPIC_AUTH_TOKEN}" ] \
-        || { warn "ANTHROPIC_AUTH_TOKEN is not set."; return 1; }
+    _token=$(_get_or_token)
+    [ -n "${_token}" ] \
+        || { warn "Neither OPENROUTER_API_KEY nor ANTHROPIC_AUTH_TOKEN is set."; return 1; }
 
     _vak_response=$(_or_curl "${OPENROUTER_API}/auth/key") \
-        || { warn "API key verification request failed."; unset _vak_response; return 1; }
+        || { warn "API key verification request failed."; unset _vak_response _token; return 1; }
 
     printf '%s' "${_vak_response}" | grep -q '"data"' \
-        || { warn "API key appears invalid."; unset _vak_response; return 1; }
-    unset _vak_response
+        || { warn "API key appears invalid."; unset _vak_response _token; return 1; }
+    unset _vak_response _token
 }

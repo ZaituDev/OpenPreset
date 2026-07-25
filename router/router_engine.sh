@@ -283,6 +283,10 @@ _router_select_routing_mode() {
 
 _router_run_direct() {
     export ANTHROPIC_MODEL="${_ROUTER_MODEL}"
+    export OPENROUTER_MODEL="${_ROUTER_MODEL}"
+    if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]; then
+        export OPENROUTER_API_KEY="${ANTHROPIC_AUTH_TOKEN}"
+    fi
     show_success "${_ROUTER_MODEL}"
 }
 
@@ -450,6 +454,10 @@ _router_choose_provider_order() {
 _router_preset_launch() {
     _slug="${1:?_router_preset_launch requires a slug}"
     export ANTHROPIC_MODEL="@preset/${_slug}"
+    export OPENROUTER_MODEL="@preset/${_slug}"
+    if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]; then
+        export OPENROUTER_API_KEY="${ANTHROPIC_AUTH_TOKEN}"
+    fi
     show_success "@preset/${_slug}"
     unset _slug
 }

@@ -1,0 +1,144 @@
+#!/usr/bin/env sh
+# openpreset — Core CLI manager and auto-updater for openpreset router suite.
+set -eu
+
+_resolve_self() {
+    _target="${1}"
+    while [ -h "${_target}" ]; do
+        _dir=$(cd -P "$(dirname "${_target}")" && pwd)
+        _target=$(readlink "${_target}")
+        case "${_target}" in
+            /*) : ;;
+            *) _target="${_dir}/${_target}" ;;
+        esac
+    done
+    _dir=$(cd -P "$(dirname "${_target}")" && pwd)
+    printf '%s/%s\n' "${_dir}" "$(basename "${_target}")"
+}
+
+_find_router_dir() {
+    _THIS=$(_resolve_self "$0")
+    _THIS_DIR=$(dirname "${_THIS}")
+    _THIS_PARENT_DIR=$(dirname "${_THIS_DIR}")
+
+    if [ -d "${_THIS_PARENT_DIR}/router" ]; then
+        printf '%s\n' "${_THIS_PARENT_DIR}/router"
+        return 0
+    fi
+    if [ -d "${_THIS_PARENT_DIR}/share/openpreset/router" ]; then
+        printf '%s\n' "${_THIS_PARENT_DIR}/share/openpreset/router"
+        return 0
+    fi
+    if [ -d "${HOME}/.local/share/openpreset/router" ]; then
+        printf '%s\n' "${HOME}/.local/share/openpreset/router"
+        return 0
+    fi
+    if [ -d "/usr/local/share/openpreset/router" ]; then
+        printf '%s\n' "/usr/local/share/openpreset/router"
+        return 0
+    fi
+    return 1
+}
+
+_ROUTER_PATH=$(_find_router_dir 2>/dev/null || true)
+if [ -n "${_ROUTER_PATH}" ] && [ -f "${_ROUTER_PATH}/config.sh" ]; then
+    export _ROUTER_DIR="${_ROUTER_PATH}"
+    . "${_ROUTER_DIR}/config.sh"
+    . "${_ROUTER_DIR}/utils.sh"
+fi
+
+VERSION="${OPENPRESET_VERSION:-1.0.0}"
+REPO="${OPENPRESET_REPO:-zaidsubhani135/claude-router}"
+
+_cmd="${1:-help}"
+if [ $# -gt 0 ]; then
+    shift
+fi
+
+case "${_cmd}" in
+    version|-v|--version)
+        printf '%s\n' "openpreset v${VERSION}"
+        exit 0
+        ;;
+
+    update|upgrade)
+        printf '%s\n' "🔄 Checking for openpreset updates from ${REPO}..."
+        _tmp_dir=$(mktemp -d)
+        cleanup() { rm -rf "${_tmp_dir}"; }
+        trap cleanup EXIT INT TERM
+
+        _install_url="https://raw.githubusercontent.com/${REPO}/main/install.sh"
+        printf '%s\n' "📥 Fetching latest installer from ${_install_url}..."
+        
+        if curl -fsSL "${_install_url}" -o "${_tmp_dir}/install.sh"; then
+            chmod +x "${_tmp_dir}/install.sh"
+            printf '%s\n' "🚀 Running update installation..."
+            sh "${_tmp_dir}/install.sh"
+            printf '%s\n' "✅ openpreset successfully updated!"
+        else
+            printf '%s\n' "❌ Failed to download update script from GitHub repository." >&2
+            exit 1
+        fi
+        exit 0
+        ;;
+
+    launch|run)
+        if [ $# -eq 0 ]; then
+            printf '%s\n' "Usage: openpreset launch <agent> [args...]" >&2
+            printf '%s\n' "Agents: cr (claude), kr (kilo), hr (hermes), or (openclaw), pr (pi), clr (cline)" >&2
+            exit 1
+        fi
+        _agent="${1}"
+        shift
+        case "${_agent}" in
+            cr|claude) exec cr "$@" ;;
+            kr|kilo) exec kr "$@" ;;
+            hr|hermes) exec hr "$@" ;;
+            or|openclaw) exec or "$@" ;;
+            pr|pi) exec pr "$@" ;;
+            clr|cline) exec clr "$@" ;;
+            *)
+                if [ -n "${_ROUTER_PATH:-}" ]; then
+                    . "${_ROUTER_DIR}/router_engine.sh"
+                    export CLAUDE_ROUTER_MODEL="__pick__"
+                    claude_router || exit 1
+                fi
+                exec "${_agent}" "$@"
+                ;;
+        esac
+        ;;
+
+    help|-h|--help)
+        cat <<EOF
+openpreset v${VERSION} — OpenRouter model & preset manager for top AI coding agents
+
+USAGE:
+    openpreset [command] [options]
+    cr | kr | hr | or | pr | clr [args...]
+
+LAUNCHERS:
+    cr            Launch Claude Code (claude)
+    kr            Launch Kilo Code (kilo)
+    hr            Launch Hermes Agent (hermes)
+    or            Launch OpenClaw (openclaw)
+    pr            Launch Pi Agent (pi)
+    clr           Launch Cline (cline)
+
+COMMANDS:
+    update        Check for updates and install latest release
+    version       Print openpreset version
+    launch <agent> Launch specific agent with router settings
+    help          Show this help message
+
+ENVIRONMENT:
+    OPENROUTER_API_KEY   OpenRouter API token (or ANTHROPIC_AUTH_TOKEN)
+EOF
+        exit 0
+        ;;
+
+    *)
+        printf '%s\n' "Unknown command: ${_cmd}" >&2
+        printf '%s\n' "Run 'openpreset --help' for usage." >&2
+        exit 1
+        ;;
+esac
