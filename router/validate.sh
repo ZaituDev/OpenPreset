@@ -341,9 +341,6 @@ _assert_contains "verbose includes latency p50" "${verbose}" "0.584s"
 _assert_contains "verbose includes uptime" "${verbose}" "99.87%"
 _assert_contains "verbose includes implicit caching" "${verbose}" "Yes"
 
-_assert_contains "verbose shows Zero retention data policy" "${verbose}" "Zero retention"
-_assert_contains "verbose includes prompt training No" "${verbose}" "Prompt training: No"
-
 verbose_fw=$(provider_intel_verbose "Fireworks" "${intel}")
 _assert_contains "verbose Fireworks null quantization → N/A" "${verbose_fw}" "N/A"
 

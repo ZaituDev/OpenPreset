@@ -48,12 +48,18 @@ claude_router() {
     while true; do
         case "${_step}" in
             1)
-                _router_select_model || return 1
+                _rc_s1=0
+                _router_select_model || _rc_s1=$?
+                if [ "${_rc_s1}" -ne 0 ]; then
+                    return 1
+                fi
                 _step=2
                 ;;
             2)
-                if ! _router_select_routing_mode; then
-                    if [ "${CLAUDE_ROUTER_MODEL}" != '__pick__' ]; then
+                _rc_s2=0
+                _router_select_routing_mode || _rc_s2=$?
+                if [ "${_rc_s2}" -ne 0 ]; then
+                    if [ "${_rc_s2}" -eq 2 ] || [ "${CLAUDE_ROUTER_MODEL}" != '__pick__' ]; then
                         return 1
                     fi
                     _step=1
@@ -68,8 +74,13 @@ claude_router() {
                         return 0
                         ;;
                     preset)
-                        if _router_run_preset; then
+                        _rc_s3=0
+                        _router_run_preset || _rc_s3=$?
+                        if [ "${_rc_s3}" -eq 0 ]; then
                             return 0
+                        fi
+                        if [ "${_rc_s3}" -eq 2 ]; then
+                            return 1
                         fi
                         if [ -n "${CLAUDE_ROUTER_MODE:-}" ] && [ "${CLAUDE_ROUTER_MODE}" != '__pick__' ]; then
                             _step=1
@@ -129,9 +140,18 @@ _router_select_model() {
     _all_models=$(_router_merge_model_lists "${_default_models}" "${_user_models}")
 
     while true; do
-        _selection=$(_router_run_model_picker "${_all_models}") || { unset _default_models _user_models _all_models _selection; return 1; }
+        _selection=$(_router_run_model_picker "${_all_models}")
+        _rc_rmp=$?
+        if [ "${_rc_rmp}" -ne 0 ]; then
+            unset _default_models _user_models _all_models _selection
+            return "${_rc_rmp}"
+        fi
 
         case "${_selection}" in
+            __cancel__)
+                unset _default_models _user_models _all_models _selection
+                return 2
+                ;;
             __custom__)
                 if _router_handle_custom_model "${_all_models}"; then
                     unset _default_models _user_models _all_models _selection
@@ -140,7 +160,12 @@ _router_select_model() {
                 continue
                 ;;
             __manage__)
-                _router_handle_manage_menu || true
+                _rc_hmm=0
+                _router_handle_manage_menu || _rc_hmm=$?
+                if [ "${_rc_hmm}" -eq 2 ]; then
+                    unset _default_models _user_models _all_models _selection
+                    return 2
+                fi
                 _user_models=$(_router_load_user_models)
                 _all_models=$(_router_merge_model_lists "${_default_models}" "${_user_models}")
                 continue
@@ -213,7 +238,16 @@ _router_handle_manage_menu() {
         set -- ${_saved}
         IFS="${_hmm_ifs_backup}"
 
-        _choice=$(show_manage_menu "$@") || { unset _saved _hmm_ifs_backup _choice; return 0; }
+        _choice=$(show_manage_menu "$@")
+        _rc_smm=$?
+        if [ "${_rc_smm}" -ne 0 ]; then
+            unset _saved _hmm_ifs_backup _choice
+            return "${_rc_smm}"
+        fi
+        if [ "${_choice}" = '__cancel__' ]; then
+            unset _saved _hmm_ifs_backup _choice
+            return 2
+        fi
         if [ "${_choice}" = '__back__' ]; then
             unset _saved _hmm_ifs_backup _choice
             return 0
@@ -232,7 +266,17 @@ _router_select_routing_mode() {
             *) die "Unknown CLAUDE_ROUTER_MODE: ${CLAUDE_ROUTER_MODE}"; return 1 ;;
         esac
     fi
-    _ROUTER_MODE=$(prompt_routing_mode) || return 1
+    _prm_res=$(prompt_routing_mode)
+    _rc_prm=$?
+    if [ "${_rc_prm}" -ne 0 ]; then
+        return "${_rc_prm}"
+    fi
+    if [ "${_prm_res}" = '__cancel__' ]; then
+        return 2
+    fi
+    _ROUTER_MODE="${_prm_res}"
+    unset _prm_res
+    return 0
 }
 
 # ── Direct mode ──────────────────────────────────────────────────────────────
@@ -247,14 +291,37 @@ _router_run_direct() {
 _router_run_preset() {
     while true; do
         _presets_json=$(preset_load_all "${_ROUTER_MODEL}")
-        _action=$(show_preset_menu "${_ROUTER_MODEL}" "${_presets_json}") || { unset _presets_json _action; return 1; }
+        _action=$(show_preset_menu "${_ROUTER_MODEL}" "${_presets_json}")
+        _rc_spm=$?
+        if [ "${_rc_spm}" -ne 0 ]; then
+            unset _presets_json _action
+            return "${_rc_spm}"
+        fi
+        if [ "${_action}" = '__cancel__' ]; then
+            unset _presets_json _action
+            return 2
+        fi
         _verb="${_action%%:*}"
         _ref="${_action#*:}"
 
         case "${_verb}" in
             launch)      _router_preset_launch "${_ref}"  && { unset _presets_json _action _verb _ref; return 0; } ;;
-            __create__)  _router_preset_create           || true ;;
-            edit)        _router_preset_edit   "${_ref}"  || true ;;
+            __create__)
+                _rc_pc=0
+                _router_preset_create || _rc_pc=$?
+                if [ "${_rc_pc}" -eq 2 ]; then
+                    unset _presets_json _action _verb _ref
+                    return 2
+                fi
+                ;;
+            edit)
+                _rc_pe=0
+                _router_preset_edit "${_ref}" || _rc_pe=$?
+                if [ "${_rc_pe}" -eq 2 ]; then
+                    unset _presets_json _action _verb _ref
+                    return 2
+                fi
+                ;;
             rename)      _router_preset_rename "${_ref}"  || true ;;
             delete)      _router_preset_delete "${_ref}"  || true ;;
             __import__)  _router_preset_import           || true ;;
@@ -368,7 +435,12 @@ _router_choose_provider_order() {
     set -- ${_ROUTER_PROVIDERS}
     IFS="${_cpo_ifs_backup}"
 
-    _ordered=$(prompt_provider_order "$@") || { unset _cpo_ifs_backup _ordered; return 1; }
+    _ordered_rc=0
+    _ordered=$(prompt_provider_order "$@") || _ordered_rc=$?
+    if [ "${_ordered_rc}" -ne 0 ]; then
+        unset _cpo_ifs_backup _ordered
+        return "${_ordered_rc}"
+    fi
     _ROUTER_ORDERED_PROVIDERS="${_ordered}"
     unset _cpo_ifs_backup _ordered
 }
@@ -383,7 +455,11 @@ _router_preset_launch() {
 }
 
 _router_preset_create() {
-    _router_choose_provider_order || return 1
+    _rc_cpo=0
+    _router_choose_provider_order || _rc_cpo=$?
+    if [ "${_rc_cpo}" -ne 0 ]; then
+        return "${_rc_cpo}"
+    fi
 
     _presets_json=$(preset_load_all "${_ROUTER_MODEL}")
     _count=$(printf '%s' "${_presets_json}" | jq 'length')
@@ -426,7 +502,12 @@ _router_preset_edit() {
     [ -n "${_name}" ] || { die "Preset \"${_slug}\" not found."; unset _slug _presets_json _name; return 1; }
 
     info "Editing \"${_name}\" — choose new provider order."
-    _router_choose_provider_order || { unset _slug _presets_json _name; return 1; }
+    _rc_cpo=0
+    _router_choose_provider_order || _rc_cpo=$?
+    if [ "${_rc_cpo}" -ne 0 ]; then
+        unset _slug _presets_json _name
+        return "${_rc_cpo}"
+    fi
 
     _providers_json=$(_router_providers_array_from_ordered)
     _payload=$(preset_payload "${_slug}" "${_ROUTER_MODEL}" "${_providers_json}")

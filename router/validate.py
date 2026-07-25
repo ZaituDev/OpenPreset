@@ -120,16 +120,25 @@ def fmt_latency(raw):
     if raw is None or raw == '':
         return 'N/A'
     try:
-        val = float(raw)
-        sec = (val / 1000.0) if val >= 10 else val
+        r = float(raw)
+        sec = (r / 1000) if r >= 10 else r
         s = f"{sec:.3f}".rstrip('0').rstrip('.')
         return f"{s}s"
     except (ValueError, TypeError):
         return 'N/A'
 
+def fmt_throughput(raw):
+    """Format throughput tokens/sec. Returns 'N/A' on null."""
+    if raw is None or raw == '':
+        return 'N/A'
+    try:
+        return f"~{int(float(raw))}t/s"
+    except (ValueError, TypeError):
+        return 'N/A'
+
 def fmt_uptime(raw):
     """Format uptime percentage. Returns 'N/A' on null."""
-    if raw is None:
+    if raw is None or raw == '':
         return 'N/A'
     try:
         return f"{float(raw):.2f}%"
@@ -137,28 +146,17 @@ def fmt_uptime(raw):
         return 'N/A'
 
 def fmt_ctx(raw):
-    """Format context length. Returns 'N/A' on null."""
+    """Format context length (e.g. 1050000 → 1.05M, 128000 → 128k). Returns 'N/A' on null."""
     if raw is None or raw == '':
         return 'N/A'
     try:
-        n = int(raw)
-        if n >= 1_000_000:
-            m = n / 1_000_000
-            s = f"{m:.2f}".rstrip('0').rstrip('.')
-            return f"{s}M"
-        elif n >= 1000:
-            return f"{n // 1000}k"
-        else:
-            return str(n)
-    except (ValueError, TypeError):
-        return 'N/A'
-
-def fmt_throughput(raw):
-    """Format throughput tokens/sec. Returns 'N/A' on null."""
-    if raw is None:
-        return 'N/A'
-    try:
-        return f"{float(raw):.0f}t/s"
+        v = int(raw)
+        if v >= 1_000_000:
+            m = f"{v / 1_000_000:.2f}".rstrip('0').rstrip('.')
+            return f"{m}M"
+        elif v >= 1_000:
+            return f"{v // 1_000}k"
+        return str(v)
     except (ValueError, TypeError):
         return 'N/A'
 
@@ -245,9 +243,6 @@ def make_verbose(name, arr):
         f"  Throughput P50:      {fmt_throughput(obj['throughput_p50'])}",
         f"  Uptime (30m):        {fmt_uptime(obj['uptime'])}",
         f"  Implicit Caching:    {'Yes' if obj['supports_implicit_caching'] else 'No'}",
-        "  Data Policy:",
-        "    Prompt training: No",
-        "    Retention:       Zero retention",
     ]
     return "\n".join(lines)
 
@@ -339,8 +334,6 @@ assert_in("verbose: quantization fp16", verbose_ds, "fp16")
 assert_in("verbose: latency 0.584s", verbose_ds, "0.584s")
 assert_in("verbose: uptime 99.87%", verbose_ds, "99.87%")
 assert_in("verbose: implicit caching Yes", verbose_ds, "Yes")
-assert_in("verbose: data policy Zero retention", verbose_ds, "Zero retention")
-assert_in("verbose: prompt training No", verbose_ds, "Prompt training: No")
 
 verbose_fw = make_verbose("Fireworks", intel)
 assert_in("verbose Fireworks null quantization → N/A", verbose_fw, "N/A")
@@ -363,17 +356,6 @@ for key in ("slug", "name", "model", "providers"):
 assert_eq("preset providers is list", type(preset_entry["providers"]), list)
 assert_eq("preset provider[0].provider", preset_entry["providers"][0]["provider"], "DeepSeek")
 assert_eq("preset provider[0].weight", preset_entry["providers"][0]["weight"], 1)
-
-print()
-print("── data policy: zero retention policy ─────────────────────────")
-
-for provider_name in ("DeepSeek", "Fireworks", "Baidu", "OpenAI", "Anthropic", "Google"):
-    v = make_verbose(provider_name, intel)
-    if "Data Policy" in v:
-        assert_in(f"{provider_name}: data policy shows Zero retention", v, "Zero retention")
-        assert_not_in(f"{provider_name}: no No training claim", v, "✓ No training")
-        assert_not_in(f"{provider_name}: no Training permitted claim", v, "✗ Training")
-        assert_not_in(f"{provider_name}: no Retention possible claim", v, "⚠ Retention")
 
 print()
 print("════════════════════════════════════════════════════════════════")

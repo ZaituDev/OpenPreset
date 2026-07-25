@@ -230,8 +230,6 @@ Once past this reference table, provider *selection* happens in exactly one UI:
 
 Additional fields are captured internally (not shown in the compact table, but available in the verbose view): request cost, image cost, P75/P90/P99 latency, P75/P90/P99 throughput, context length, max prompt/completion tokens, quantization, implicit-caching support, endpoint status, and supported parameters. Fields are `N/A` when OpenRouter doesn't provide data for that provider. No additional API calls are made — values are read from the already-cached endpoint response.
 
-**Data policy:** OpenRouter does not expose per-provider training or data-retention policy via its API. The verbose view shows `Unknown` for all providers. Don't rely on this router for data policy decisions — consult OpenRouter's [Privacy documentation](https://openrouter.ai/docs/guides/privacy/data-collection) and individual provider terms directly.
-
 ### Sorting & Info Preview
 
 In the fzf provider picker, sort or toggle verbose info by pressing a key before confirming selection:
