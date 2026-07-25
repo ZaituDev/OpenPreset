@@ -29,13 +29,16 @@ _pi_fmt_cost() {
     fi
     awk -v r="${_raw}" 'BEGIN {
         v = r * 1000000
-        if (v == 0) { print "0.0000"; exit }
-        printf "%.4f\n", v
+        if (v == 0) { print "$0"; exit }
+        s = sprintf("%.4f", v)
+        sub(/0+$/, "", s)
+        sub(/\.$/, "", s)
+        printf "$%s\n", s
     }' 2>/dev/null || printf '%s\n' 'N/A'
     unset _raw
 }
 
-# Format latency seconds → milliseconds string.
+# Format latency seconds string.
 _pi_fmt_latency() {
     _raw="${1}"
     if [ -z "${_raw}" ] || [ "${_raw}" = 'null' ]; then
@@ -43,8 +46,13 @@ _pi_fmt_latency() {
         unset _raw
         return
     fi
-    awk -v r="${_raw}" 'BEGIN { printf "%dms\n", int(r * 1000) }' 2>/dev/null \
-        || printf '%s\n' 'N/A'
+    awk -v r="${_raw}" 'BEGIN {
+        sec = (r >= 10) ? (r / 1000) : r
+        s = sprintf("%.3f", sec)
+        sub(/0+$/, "", s)
+        sub(/\.$/, "", s)
+        printf "%ss\n", s
+    }' 2>/dev/null || printf '%s\n' 'N/A'
     unset _raw
 }
 
@@ -74,7 +82,7 @@ _pi_fmt_uptime() {
     unset _raw
 }
 
-# Format context length (e.g. 128000 → 128k).
+# Format context length (e.g. 1050000 → 1.05M, 128000 → 128k).
 _pi_fmt_ctx() {
     _raw="${1}"
     if [ -z "${_raw}" ] || [ "${_raw}" = 'null' ]; then
@@ -82,7 +90,15 @@ _pi_fmt_ctx() {
         unset _raw
         return
     fi
-    if [ "${_raw}" -ge 1000 ] 2>/dev/null; then
+    if [ "${_raw}" -ge 1000000 ] 2>/dev/null; then
+        awk -v r="${_raw}" 'BEGIN {
+            m = r / 1000000
+            s = sprintf("%.2f", m)
+            sub(/0+$/, "", s)
+            sub(/\.$/, "", s)
+            printf "%sM\n", s
+        }' 2>/dev/null || printf '%s\n' "${_raw}"
+    elif [ "${_raw}" -ge 1000 ] 2>/dev/null; then
         printf '%dk\n' $(( _raw / 1000 ))
     else
         printf '%s\n' "${_raw}"
@@ -254,7 +270,7 @@ provider_intel_verbose() {
     fi
 
     _ctx=$(_pi_fmt_ctx         "$(printf '%s' "${_obj}" | jq -r '.context_length          // empty')")
-    _max_out=$(                  printf '%s' "${_obj}" | jq -r '.max_completion_tokens   // "N/A"')
+    _max_out=$(_pi_fmt_ctx     "$(printf '%s' "${_obj}" | jq -r '.max_completion_tokens   // empty')")
     _quant=$(                    printf '%s' "${_obj}" | jq -r '.quantization             // "N/A"')
     _lat_p50=$(_pi_fmt_latency  "$(printf '%s' "${_obj}" | jq -r '.latency_p50            // empty')")
     _lat_p90=$(_pi_fmt_latency  "$(printf '%s' "${_obj}" | jq -r '.latency_p90            // empty')")
@@ -265,6 +281,15 @@ provider_intel_verbose() {
     _p_compl=$(_pi_fmt_cost     "$(printf '%s' "${_obj}" | jq -r '.pricing_completion      // empty')")
     _p_req=$(                    printf '%s' "${_obj}" | jq -r '.pricing_request           // "N/A"')
 
+    [ "${_p_prompt}" != 'N/A' ] && _p_prompt="${_p_prompt} /M tokens"
+    [ "${_p_compl}"  != 'N/A' ] && _p_compl="${_p_compl} /M tokens"
+    if [ "${_p_req}" != 'N/A' ]; then
+        case "${_p_req}" in
+            \$*) ;;
+            *)   _p_req="\$${_p_req}" ;;
+        esac
+    fi
+
     cat <<EOF
 
   Provider: ${_name}
@@ -273,8 +298,8 @@ provider_intel_verbose() {
   Max Output Tokens: ${_max_out}
   Quantization:      ${_quant}
 
-  Prompt Cost:       ${_p_prompt} \$/M tokens
-  Completion Cost:   ${_p_compl} \$/M tokens
+  Prompt Cost:       ${_p_prompt}
+  Completion Cost:   ${_p_compl}
   Request Cost:      ${_p_req}
 
   Latency P50 (TTFT):  ${_lat_p50}
@@ -283,8 +308,9 @@ provider_intel_verbose() {
   Uptime (30m):        ${_uptime}
   Implicit Caching:    ${_implicit}
 
-  Data Policy:       Unknown
-  (OpenRouter does not expose per-provider data policy via API)
+  Data Policy:
+    Prompt training: No
+    Retention:       Unknown retention
 
 EOF
 

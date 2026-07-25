@@ -353,12 +353,15 @@ show_provider_table() {
 _ui_fzf_provider_order() {
     _intel_arr="${_ROUTER_PROVIDER_INTEL:-[]}"
 
-    # Write one temp file per sort order.
-    _tmp_name=$(mktemp) || { warn "Cannot create temp file."; return 1; }
-    _tmp_cost=$(mktemp) || { rm -f "${_tmp_name}"; warn "Cannot create temp file."; return 1; }
-    _tmp_lat=$(mktemp)  || { rm -f "${_tmp_name}" "${_tmp_cost}"; warn "Cannot create temp file."; return 1; }
-    _tmp_up=$(mktemp)   || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}"; warn "Cannot create temp file."; return 1; }
-    _tmp_tp=$(mktemp)   || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}"; warn "Cannot create temp file."; return 1; }
+    # Write one temp file per sort order + one for raw intel JSON.
+    _tmp_name=$(mktemp)  || { warn "Cannot create temp file."; return 1; }
+    _tmp_cost=$(mktemp)  || { rm -f "${_tmp_name}"; warn "Cannot create temp file."; return 1; }
+    _tmp_lat=$(mktemp)   || { rm -f "${_tmp_name}" "${_tmp_cost}"; warn "Cannot create temp file."; return 1; }
+    _tmp_up=$(mktemp)    || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}"; warn "Cannot create temp file."; return 1; }
+    _tmp_tp=$(mktemp)    || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}"; warn "Cannot create temp file."; return 1; }
+    _tmp_intel=$(mktemp) || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}"; warn "Cannot create temp file."; return 1; }
+
+    printf '%s' "${_intel_arr}" > "${_tmp_intel}"
 
     # Populate all sort files. Falls back to provider name only when no intel.
     _has_intel=0
@@ -386,7 +389,7 @@ _ui_fzf_provider_order() {
     printf '\n' >&2
     printf '  ── Provider Selection ──────────────────────────────────────\n' >&2
     printf '  TAB to select · Enter to confirm · Esc to cancel\n' >&2
-    printf '  Sort: s=cost  l=latency  u=uptime  t=throughput  n=name\n' >&2
+    printf '  Sort: s=cost  l=latency  u=uptime  t=throughput  n=name  v=info\n' >&2
     printf '  Select in your desired priority order (first = highest priority)\n' >&2
     printf '\n' >&2
 
@@ -397,26 +400,29 @@ _ui_fzf_provider_order() {
             --height '~60%' \
             --layout reverse \
             --border rounded \
-            --no-preview \
-            --header '  TAB select · ↑↓ navigate · s/l/u/t/n sort · Enter confirm' \
+            --preview ". \"${_ROUTER_DIR}/provider_intel.sh\"; provider_intel_verbose {1} \"\$(cat ${_tmp_intel})\"" \
+            --preview-window 'right:50%:hidden' \
+            --header '  TAB select · ↑↓ nav · s/l/u/t/n sort · v info card · Enter confirm' \
             --bind "s:reload(cat ${_tmp_cost})" \
             --bind "l:reload(cat ${_tmp_lat})" \
             --bind "u:reload(cat ${_tmp_up})" \
             --bind "t:reload(cat ${_tmp_tp})" \
             --bind "n:reload(cat ${_tmp_name})" \
+            --bind 'v:toggle-preview' \
+            --bind '?:toggle-preview' \
             < "${_tmp_name}" \
             2>/dev/tty
     )
     _rc=$?
-    rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}"
+    rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}" "${_tmp_intel}"
 
     if [ "${_rc}" -ne 0 ]; then
-        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _has_intel _count _p _selected_lines _rc
+        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _selected_lines _rc
         return 1
     fi
     if [ -z "${_selected_lines}" ]; then
         warn "No providers selected."
-        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _has_intel _count _p _selected_lines _rc
+        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _selected_lines _rc
         return 1
     fi
 
@@ -429,7 +435,7 @@ _ui_fzf_provider_order() {
         [ -n "${_pname}" ] && printf '%s\n' "${_pname}"
     done
 
-    unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _has_intel _count _p _selected_lines _rc
+    unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _selected_lines _rc
 }
 
 # Prints ordered provider names (newline-separated) to stdout.

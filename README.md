@@ -232,17 +232,18 @@ Additional fields are captured internally (not shown in the compact table, but a
 
 **Data policy:** OpenRouter does not expose per-provider training or data-retention policy via its API. The verbose view shows `Unknown` for all providers. Don't rely on this router for data policy decisions — consult OpenRouter's [Privacy documentation](https://openrouter.ai/docs/guides/privacy/data-collection) and individual provider terms directly.
 
-### Sorting
+### Sorting & Info Preview
 
-In the fzf provider picker, sort by pressing a key before confirming selection:
+In the fzf provider picker, sort or toggle verbose info by pressing a key before confirming selection:
 
-| Key | Sort by |
-|-----|---------|
-| `s` | Cost (cheapest first) |
-| `l` | Latency (fastest first) |
-| `u` | Uptime (best first) |
-| `t` | Throughput (highest first) |
-| `n` | Provider name (A–Z) |
+| Key | Action |
+|-----|--------|
+| `s` | Sort by Cost (cheapest first) |
+| `l` | Sort by Latency (fastest first) |
+| `u` | Sort by Uptime (best first) |
+| `t` | Sort by Throughput (highest first) |
+| `n` | Sort by Provider name (A–Z) |
+| `v` / `?` | Toggle verbose info card preview for highlighted provider |
 
 Sorting affects only the picker's display order. It never modifies stored preset priorities or routing order — selection order (the order you `Tab`-select or type indices in) is what's saved.
 
