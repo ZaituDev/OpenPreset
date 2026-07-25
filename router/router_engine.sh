@@ -213,12 +213,6 @@ _router_run_direct() {
 # ── Preset mode ──────────────────────────────────────────────────────────────
 
 _router_run_preset() {
-    _router_ensure_providers || return 1
-
-    # Load provider intelligence once — reused across all menu interactions.
-    _ROUTER_PROVIDER_INTEL=$(provider_intel_all "${_ROUTER_MODEL}")
-    export _ROUTER_PROVIDER_INTEL
-
     while true; do
         _presets_json=$(preset_load_all "${_ROUTER_MODEL}")
         _action=$(show_preset_menu "${_ROUTER_MODEL}" "${_presets_json}") || { unset _presets_json _action; return 1; }
@@ -310,6 +304,11 @@ EOF
 # before the picker runs.
 
 _router_choose_provider_order() {
+    _router_ensure_providers || return 1
+
+    _ROUTER_PROVIDER_INTEL=$(provider_intel_all "${_ROUTER_MODEL}")
+    export _ROUTER_PROVIDER_INTEL
+
     if [ -n "${CLAUDE_ROUTER_PROFILE}" ]; then
         case "${CLAUDE_ROUTER_PROFILE}" in
             balanced)

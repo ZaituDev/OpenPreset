@@ -79,66 +79,66 @@ preset_load_all() {
 # Save a JSON array of presets for a model.
 # Usage: preset_save_all <model-id> <json-array>
 preset_save_all() {
-    _model="${1:?preset_save_all requires a model id}"
-    _json="${2:?preset_save_all requires a JSON array}"
-    _file=$(preset_metadata_file "${_model}")
+    _psa_model="${1:?preset_save_all requires a model id}"
+    _psa_json="${2:?preset_save_all requires a JSON array}"
+    _psa_file=$(preset_metadata_file "${_psa_model}")
     mkdir -p "${PRESETS_DIR}"
-    printf '%s' "${_json}" > "${_file}"
-    unset _model _json _file
+    printf '%s' "${_psa_json}" > "${_psa_file}"
+    unset _psa_model _psa_json _psa_file
 }
 
 # Append or update a single preset entry in the model's metadata file.
 # Usage: preset_upsert <model-id> <slug> <name> <providers-json-array>
 preset_upsert() {
-    _model="${1:?preset_upsert requires a model id}"
-    _slug="${2:?preset_upsert requires a slug}"
-    _name="${3:?preset_upsert requires a name}"
-    _providers="${4:?preset_upsert requires providers}"
+    _pu_model="${1:?preset_upsert requires a model id}"
+    _pu_slug="${2:?preset_upsert requires a slug}"
+    _pu_name="${3:?preset_upsert requires a name}"
+    _pu_providers="${4:?preset_upsert requires providers}"
 
-    _existing=$(preset_load_all "${_model}")
+    _pu_existing=$(preset_load_all "${_pu_model}")
 
     # Remove any entry with the same slug, then append the new one.
-    _updated=$(printf '%s' "${_existing}" \
-        | jq --arg slug "${_slug}" 'map(select(.slug != $slug))')
-    _updated=$(printf '%s' "${_updated}" \
-        | jq --arg slug "${_slug}" \
-             --arg name "${_name}" \
-             --arg model "${_model}" \
-             --argjson providers "${_providers}" \
+    _pu_updated=$(printf '%s' "${_pu_existing}" \
+        | jq --arg slug "${_pu_slug}" 'map(select(.slug != $slug))')
+    _pu_updated=$(printf '%s' "${_pu_updated}" \
+        | jq --arg slug "${_pu_slug}" \
+             --arg name "${_pu_name}" \
+             --arg model "${_pu_model}" \
+             --argjson providers "${_pu_providers}" \
              '. + [{"slug":$slug,"name":$name,"model":$model,"providers":$providers}]')
 
-    preset_save_all "${_model}" "${_updated}"
-    unset _model _slug _name _providers _existing _updated
+    preset_save_all "${_pu_model}" "${_pu_updated}"
+    unset _pu_model _pu_slug _pu_name _pu_providers _pu_existing _pu_updated
 }
 
 # Remove a preset entry from the model's metadata file by slug.
 # Usage: preset_remove <model-id> <slug>
 preset_remove() {
-    _model="${1:?preset_remove requires a model id}"
-    _slug="${2:?preset_remove requires a slug}"
-    _existing=$(preset_load_all "${_model}")
-    _updated=$(printf '%s' "${_existing}" \
-        | jq --arg slug "${_slug}" 'map(select(.slug != $slug))')
-    preset_save_all "${_model}" "${_updated}"
-    unset _model _slug _existing _updated
+    _pr_model="${1:?preset_remove requires a model id}"
+    _pr_slug="${2:?preset_remove requires a slug}"
+    _pr_existing=$(preset_load_all "${_pr_model}")
+    _pr_updated=$(printf '%s' "${_pr_existing}" \
+        | jq --arg slug "${_pr_slug}" 'map(select(.slug != $slug))')
+    preset_save_all "${_pr_model}" "${_pr_updated}"
+    unset _pr_model _pr_slug _pr_existing _pr_updated
 }
 
 # Rename a preset in the model's metadata file.
 # Usage: preset_rename_local <model-id> <old-slug> <new-name> <new-slug>
 preset_rename_local() {
-    _model="${1:?preset_rename_local requires a model id}"
-    _old_slug="${2:?preset_rename_local requires an old slug}"
-    _new_name="${3:?preset_rename_local requires a new name}"
-    _new_slug="${4:?preset_rename_local requires a new slug}"
+    _prl_model="${1:?preset_rename_local requires a model id}"
+    _prl_old_slug="${2:?preset_rename_local requires an old slug}"
+    _prl_new_name="${3:?preset_rename_local requires a new name}"
+    _prl_new_slug="${4:?preset_rename_local requires a new slug}"
 
-    _existing=$(preset_load_all "${_model}")
-    _updated=$(printf '%s' "${_existing}" | jq \
-        --arg old_slug "${_old_slug}" \
-        --arg new_slug "${_new_slug}" \
-        --arg new_name "${_new_name}" \
+    _prl_existing=$(preset_load_all "${_prl_model}")
+    _prl_updated=$(printf '%s' "${_prl_existing}" | jq \
+        --arg old_slug "${_prl_old_slug}" \
+        --arg new_slug "${_prl_new_slug}" \
+        --arg new_name "${_prl_new_name}" \
         'map(if .slug == $old_slug then .slug = $new_slug | .name = $new_name else . end)')
-    preset_save_all "${_model}" "${_updated}"
-    unset _model _old_slug _new_name _new_slug _existing _updated
+    preset_save_all "${_prl_model}" "${_prl_updated}"
+    unset _prl_model _prl_old_slug _prl_new_name _prl_new_slug _prl_existing _prl_updated
 }
 
 # Build a providers JSON array string from an ordered list of provider names.

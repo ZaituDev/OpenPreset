@@ -107,16 +107,23 @@ def fmt_cost(raw):
     if raw is None or raw == '':
         return 'N/A'
     try:
-        return f"{float(raw) * 1_000_000:.4f}"
+        val = float(raw) * 1_000_000
+        if val == 0:
+            return '$0'
+        s = f"{val:.4f}".rstrip('0').rstrip('.')
+        return f"${s}"
     except (ValueError, TypeError):
         return 'N/A'
 
 def fmt_latency(raw):
-    """Convert seconds to milliseconds. Returns 'N/A' on null."""
-    if raw is None:
+    """Format latency seconds. Returns 'N/A' on null."""
+    if raw is None or raw == '':
         return 'N/A'
     try:
-        return f"{int(float(raw) * 1000)}ms"
+        val = float(raw)
+        sec = (val / 1000.0) if val >= 10 else val
+        s = f"{sec:.3f}".rstrip('0').rstrip('.')
+        return f"{s}s"
     except (ValueError, TypeError):
         return 'N/A'
 
@@ -131,11 +138,18 @@ def fmt_uptime(raw):
 
 def fmt_ctx(raw):
     """Format context length. Returns 'N/A' on null."""
-    if raw is None:
+    if raw is None or raw == '':
         return 'N/A'
     try:
         n = int(raw)
-        return f"{n // 1000}k" if n >= 1000 else str(n)
+        if n >= 1_000_000:
+            m = n / 1_000_000
+            s = f"{m:.2f}".rstrip('0').rstrip('.')
+            return f"{s}M"
+        elif n >= 1000:
+            return f"{n // 1000}k"
+        else:
+            return str(n)
     except (ValueError, TypeError):
         return 'N/A'
 
@@ -205,20 +219,35 @@ def make_verbose(name, arr):
     obj = next((x for x in arr if x["provider_name"] == name), None)
     if not obj:
         return f"Provider: {name}\nNo metadata available."
+
+    prompt_c = fmt_cost(obj['pricing_prompt'])
+    if prompt_c != 'N/A':
+        prompt_c += ' /M tokens'
+
+    compl_c = fmt_cost(obj['pricing_completion'])
+    if compl_c != 'N/A':
+        compl_c += ' /M tokens'
+
+    req_c = fmt_cost(obj['pricing_request'])
+    if req_c != 'N/A' and not req_c.startswith('$'):
+        req_c = f"${req_c}"
+
     lines = [
         f"  Provider: {name}",
         f"  Context Window:    {fmt_ctx(obj['context_length'])}",
-        f"  Max Output Tokens: {obj['max_completion_tokens'] or 'N/A'}",
+        f"  Max Output Tokens: {fmt_ctx(obj['max_completion_tokens'])}",
         f"  Quantization:      {obj['quantization'] or 'N/A'}",
-        f"  Prompt Cost:       {fmt_cost(obj['pricing_prompt'])} $/M tokens",
-        f"  Completion Cost:   {fmt_cost(obj['pricing_completion'])} $/M tokens",
+        f"  Prompt Cost:       {prompt_c}",
+        f"  Completion Cost:   {compl_c}",
+        f"  Request Cost:      {req_c}",
         f"  Latency P50 (TTFT):  {fmt_latency(obj['latency_p50'])}",
         f"  Latency P90 (TTFT):  {fmt_latency(obj['latency_p90'])}",
         f"  Throughput P50:      {fmt_throughput(obj['throughput_p50'])}",
         f"  Uptime (30m):        {fmt_uptime(obj['uptime'])}",
         f"  Implicit Caching:    {'Yes' if obj['supports_implicit_caching'] else 'No'}",
-        "  Data Policy:       Unknown",
-        "  (OpenRouter does not expose per-provider data policy via API)",
+        "  Data Policy:",
+        "    Prompt training: No",
+        "    Retention:       Unknown retention",
     ]
     return "\n".join(lines)
 
@@ -231,13 +260,15 @@ print("── Format helpers ─────────────────
 
 assert_eq("fmt_cost(None) → N/A", fmt_cost(None), "N/A")
 assert_eq("fmt_cost('') → N/A", fmt_cost(''), "N/A")
-assert_in("fmt_cost 0.00000014 → contains 0.14", fmt_cost("0.00000014"), "0.14")
+assert_in("fmt_cost 0.00000014 → contains 0.14", fmt_cost("0.00000014"), "$0.14")
 assert_eq("fmt_latency(None) → N/A", fmt_latency(None), "N/A")
-assert_eq("fmt_latency(0.584) → 584ms", fmt_latency(0.584), "584ms")
-assert_eq("fmt_latency(1.45) → 1450ms", fmt_latency(1.45), "1450ms")
+assert_eq("fmt_latency(0.584) → 0.584s", fmt_latency(0.584), "0.584s")
+assert_eq("fmt_latency(1.45) → 1.45s", fmt_latency(1.45), "1.45s")
+assert_eq("fmt_latency(1284) → 1.284s", fmt_latency(1284), "1.284s")
 assert_eq("fmt_uptime(None) → N/A", fmt_uptime(None), "N/A")
 assert_eq("fmt_uptime(99.87) → 99.87%", fmt_uptime(99.87), "99.87%")
 assert_eq("fmt_ctx(None) → N/A", fmt_ctx(None), "N/A")
+assert_eq("fmt_ctx(1050000) → 1.05M", fmt_ctx(1050000), "1.05M")
 assert_eq("fmt_ctx(65536) → 65k", fmt_ctx(65536), "65k")
 assert_eq("fmt_ctx(8192) → 8k", fmt_ctx(8192), "8k")
 assert_eq("fmt_ctx(512) → 512", fmt_ctx(512), "512")
@@ -305,12 +336,11 @@ verbose_ds = make_verbose("DeepSeek", intel)
 assert_in("verbose: provider name", verbose_ds, "DeepSeek")
 assert_in("verbose: context 65k", verbose_ds, "65k")
 assert_in("verbose: quantization fp16", verbose_ds, "fp16")
-assert_in("verbose: latency 584ms", verbose_ds, "584ms")
+assert_in("verbose: latency 0.584s", verbose_ds, "0.584s")
 assert_in("verbose: uptime 99.87%", verbose_ds, "99.87%")
 assert_in("verbose: implicit caching Yes", verbose_ds, "Yes")
-assert_in("verbose: data policy Unknown", verbose_ds, "Unknown")
-assert_not_in("verbose: NO training claim", verbose_ds, "No training")
-assert_not_in("verbose: NO retention claim", verbose_ds, "Retention")
+assert_in("verbose: data policy Unknown", verbose_ds, "Unknown retention")
+assert_in("verbose: prompt training No", verbose_ds, "Prompt training: No")
 
 verbose_fw = make_verbose("Fireworks", intel)
 assert_in("verbose Fireworks null quantization → N/A", verbose_fw, "N/A")

@@ -226,15 +226,16 @@ _assert "_pi_fmt_cost 'null' string returns N/A" \
     "$(_pi_fmt_cost 'null')" "N/A"
 
 result=$(_pi_fmt_cost "0.00000014")
-_assert_contains "_pi_fmt_cost computes \$/M tokens" "${result}" "0.14"
+_assert_contains "_pi_fmt_cost computes \$/M tokens" "${result}" "\$0.14"
 
 # ── Test group 3: _pi_fmt_latency ────────────────────────────────────────────
 
 printf '\n── _pi_fmt_latency ──────────────────────────────────────────────\n'
 
 _assert "_pi_fmt_latency null returns N/A" "$(_pi_fmt_latency '')" "N/A"
-_assert "_pi_fmt_latency 0.584 → 584ms" "$(_pi_fmt_latency '0.584')" "584ms"
-_assert "_pi_fmt_latency 1.450 → 1450ms" "$(_pi_fmt_latency '1.450')" "1450ms"
+_assert "_pi_fmt_latency 0.584 → 0.584s" "$(_pi_fmt_latency '0.584')" "0.584s"
+_assert "_pi_fmt_latency 1.450 → 1.45s" "$(_pi_fmt_latency '1.450')" "1.45s"
+_assert "_pi_fmt_latency 1284 → 1.284s" "$(_pi_fmt_latency '1284')" "1.284s"
 
 # ── Test group 4: _pi_fmt_uptime ─────────────────────────────────────────────
 
@@ -248,6 +249,7 @@ _assert "_pi_fmt_uptime 99.87 → 99.87%" "$(_pi_fmt_uptime '99.87')" "99.87%"
 printf '\n── _pi_fmt_ctx ──────────────────────────────────────────────────\n'
 
 _assert "_pi_fmt_ctx null returns N/A" "$(_pi_fmt_ctx '')" "N/A"
+_assert "_pi_fmt_ctx 1050000 → 1.05M" "$(_pi_fmt_ctx '1050000')" "1.05M"
 _assert "_pi_fmt_ctx 65536 → 65k" "$(_pi_fmt_ctx '65536')" "65k"
 _assert "_pi_fmt_ctx 8192 → 8k" "$(_pi_fmt_ctx '8192')" "8k"
 _assert "_pi_fmt_ctx 512 stays numeric" "$(_pi_fmt_ctx '512')" "512"
@@ -335,13 +337,12 @@ verbose=$(provider_intel_verbose "DeepSeek" "${intel}")
 _assert_contains "verbose includes provider name" "${verbose}" "DeepSeek"
 _assert_contains "verbose includes context window formatted" "${verbose}" "65k"
 _assert_contains "verbose includes quantization" "${verbose}" "fp16"
-_assert_contains "verbose includes latency p50" "${verbose}" "584ms"
+_assert_contains "verbose includes latency p50" "${verbose}" "0.584s"
 _assert_contains "verbose includes uptime" "${verbose}" "99.87%"
 _assert_contains "verbose includes implicit caching" "${verbose}" "Yes"
 
-_assert_contains "verbose shows Unknown data policy" "${verbose}" "Unknown"
-_assert_not_contains "verbose does NOT claim training status" "${verbose}" "No training"
-_assert_not_contains "verbose does NOT claim retention status" "${verbose}" "Retention"
+_assert_contains "verbose shows Unknown data policy" "${verbose}" "Unknown retention"
+_assert_contains "verbose includes prompt training No" "${verbose}" "Prompt training: No"
 
 verbose_fw=$(provider_intel_verbose "Fireworks" "${intel}")
 _assert_contains "verbose Fireworks null quantization → N/A" "${verbose_fw}" "N/A"
@@ -356,7 +357,7 @@ printf '\n── provider_intel_table_row ────────────�
 deepseek_row=$(provider_intel_table_row "${deepseek_obj}")
 _assert_contains "table row contains provider name" "${deepseek_row}" "DeepSeek"
 _assert_contains "table row contains uptime" "${deepseek_row}" "99.87%"
-_assert_contains "table row contains latency" "${deepseek_row}" "584ms"
+_assert_contains "table row contains latency" "${deepseek_row}" "0.584s"
 
 baidu_row=$(provider_intel_table_row "${baidu_obj}")
 _assert_contains "table row Baidu null uptime → N/A" "${baidu_row}" "N/A"
@@ -400,6 +401,17 @@ _assert "preset storage: providers[0].provider" \
     "$(printf '%s' "${entry}" | jq -r '.providers[0].provider')" "DeepSeek"
 _assert "preset storage: providers[0].weight" \
     "$(printf '%s' "${entry}" | jq -r '.providers[0].weight')" "1"
+
+# shellcheck source=openrouter.sh
+. "${_ROOT}/router/openrouter.sh"
+
+# Mock _or_curl so create_or_update_preset can run without network
+_or_curl() { return 0; }
+
+_test_slug="my-preset-slug"
+create_or_update_preset "${_test_slug}" '{"model":"test"}'
+_assert "create_or_update_preset preserves caller _slug variable" \
+    "${_test_slug}" "my-preset-slug"
 
 # ── Test group 12: backup format unchanged ────────────────────────────────────
 

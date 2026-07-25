@@ -22,42 +22,42 @@ download_models() {
 # Download provider endpoint details for a specific model slug.
 # Usage: download_endpoints <model-id>
 download_endpoints() {
-    _model="${1:?download_endpoints requires a model id}"
-    _or_curl "${OPENROUTER_API}/models/${_model}/endpoints"
-    unset _model
+    _de_model="${1:?download_endpoints requires a model id}"
+    _or_curl "${OPENROUTER_API}/models/${_de_model}/endpoints"
+    unset _de_model
 }
 
 # Validate that a model id exists in the OpenRouter catalogue.
 # Returns 0 if found, 1 if not.
 validate_model() {
-    _model="${1:?validate_model requires a model id}"
-    _response=$(download_endpoints "${_model}") || { unset _model _response; return 1; }
-    printf '%s' "${_response}" | jq -e '.data | length > 0' > /dev/null 2>&1
-    _rc=$?
-    unset _model _response
-    return "${_rc}"
+    _vm_model="${1:?validate_model requires a model id}"
+    _vm_response=$(download_endpoints "${_vm_model}") || { unset _vm_model _vm_response; return 1; }
+    printf '%s' "${_vm_response}" | jq -e '.data | length > 0' > /dev/null 2>&1
+    _vm_rc=$?
+    unset _vm_model _vm_response
+    return "${_vm_rc}"
 }
 
 create_or_update_preset() {
-    _slug="${1:?create_or_update_preset requires a slug}"
-    _payload="${2:?create_or_update_preset requires a JSON payload}"
+    _coup_slug="${1:?create_or_update_preset requires a slug}"
+    _coup_payload="${2:?create_or_update_preset requires a JSON payload}"
 
     _or_curl --request POST \
-             --data "${_payload}" \
-             "${OPENROUTER_API}/presets/${_slug}/chat/completions" > /dev/null
-    _rc=$?
-    unset _slug _payload
-    return "${_rc}"
+             --data "${_coup_payload}" \
+             "${OPENROUTER_API}/presets/${_coup_slug}/chat/completions" > /dev/null
+    _coup_rc=$?
+    unset _coup_slug _coup_payload
+    return "${_coup_rc}"
 }
 
 # Delete a preset by slug.
 # Usage: delete_preset <slug>
 delete_preset() {
-    _slug="${1:?delete_preset requires a slug}"
-    _or_curl --request DELETE "${OPENROUTER_API}/presets/${_slug}"
-    _rc=$?
-    unset _slug
-    return "${_rc}"
+    _dp_slug="${1:?delete_preset requires a slug}"
+    _or_curl --request DELETE "${OPENROUTER_API}/presets/${_dp_slug}"
+    _dp_rc=$?
+    unset _dp_slug
+    return "${_dp_rc}"
 }
 
 # Verify ANTHROPIC_AUTH_TOKEN is accepted by OpenRouter.
@@ -65,10 +65,10 @@ verify_api_key() {
     [ -n "${ANTHROPIC_AUTH_TOKEN}" ] \
         || { warn "ANTHROPIC_AUTH_TOKEN is not set."; return 1; }
 
-    _response=$(_or_curl "${OPENROUTER_API}/auth/key") \
-        || { warn "API key verification request failed."; unset _response; return 1; }
+    _vak_response=$(_or_curl "${OPENROUTER_API}/auth/key") \
+        || { warn "API key verification request failed."; unset _vak_response; return 1; }
 
-    printf '%s' "${_response}" | grep -q '"data"' \
-        || { warn "API key appears invalid."; unset _response; return 1; }
-    unset _response
+    printf '%s' "${_vak_response}" | grep -q '"data"' \
+        || { warn "API key appears invalid."; unset _vak_response; return 1; }
+    unset _vak_response
 }
