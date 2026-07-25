@@ -1,8 +1,8 @@
-# claude-router
+# openpreset
 
 A terminal tool that picks Claude Code's model and provider routing through OpenRouter, with live cost/latency/uptime data and reusable presets.
 
-## What is Claude Router?
+## What is  OpenPreset?
 
 Claude Router is a small POSIX shell tool that runs right before `claude` starts. It lets you choose which model Claude Code uses (via [OpenRouter](https://openrouter.ai)), see a live comparison of every provider available for that model, set a priority order between them, and save that order as a named preset.
 
