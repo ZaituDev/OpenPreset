@@ -13,7 +13,7 @@ Presets aren't local-only settings. `openpreset` creates and manages them as rea
 Install `openpreset` instantly on any Linux distribution (or macOS/BSD with POSIX shell):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/zaidsubhani135/claude-router/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ZaituDev/OpenPreset/main/install.sh | sh
 ```
 
 The installer automatically detects non-root vs `sudo` privileges:
