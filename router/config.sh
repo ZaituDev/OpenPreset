@@ -4,7 +4,7 @@
 
 # ── openpreset Version & Repo Info ───────────────────────────────────────
 
-OPENPRESET_VERSION="${OPENPRESET_VERSION:-2.0.0}"
+OPENPRESET_VERSION="${OPENPRESET_VERSION:-2.1.0}"
 OPENPRESET_REPO="${OPENPRESET_REPO:-zaidsubhani135/claude-router}"
 
 # ── XDG-compliant paths ────────────────────────────────────────────────────

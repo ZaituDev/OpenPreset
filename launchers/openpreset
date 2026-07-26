@@ -127,30 +127,178 @@ case "${_cmd}" in
         exit 0
         ;;
 
-    launch|run)
-        if [ $# -eq 0 ]; then
-            printf '%s\n' "Usage: openpreset launch <agent> [args...]" >&2
-            printf '%s\n' "Agents: cr (claude), kr (kilo), hr (hermes), or (openclaw), pr (pi), clr (cline)" >&2
+    export|backup-export)
+        _target_path=""
+        for _arg in "$@"; do
+            case "${_arg}" in
+                *)
+                    if [ -z "${_target_path}" ]; then
+                        _target_path="${_arg}"
+                    fi
+                    ;;
+            esac
+        done
+
+        _today=$(date +%Y-%m-%d)
+        if [ -z "${_target_path}" ] || [ "${_target_path}" = "~" ]; then
+            _target_file="${HOME}/openpreset-backup-${_today}.json"
+        else
+            _target_path=$(printf '%s\n' "${_target_path}" | sed "s|^~|${HOME}|")
+            if [ -d "${_target_path}" ]; then
+                _target_file="${_target_path%/}/openpreset-backup-${_today}.json"
+            else
+                _target_file="${_target_path}"
+            fi
+        fi
+
+        if [ -n "${_ROUTER_PATH:-}" ] && [ -f "${_ROUTER_DIR}/router_engine.sh" ]; then
+            . "${_ROUTER_DIR}/router_engine.sh"
+            backup_export "${_target_file}"
+        else
+            printf '%s\n' "❌ Router components not found." >&2
             exit 1
         fi
-        _agent="${1}"
-        shift
-        case "${_agent}" in
-            cr|claude) exec cr "$@" ;;
-            kr|kilo) exec kr "$@" ;;
-            hr|hermes) exec hr "$@" ;;
-            or|openclaw) exec or "$@" ;;
-            pr|pi) exec pr "$@" ;;
-            clr|cline) exec clr "$@" ;;
-            *)
-                if [ -n "${_ROUTER_PATH:-}" ]; then
-                    . "${_ROUTER_DIR}/router_engine.sh"
-                    export OPENPRESET_MODEL="__pick__"
-                    openpreset_router || exit 1
+        exit 0
+        ;;
+
+    import|backup-import)
+        _target_path=""
+        _mode="merge"
+        while [ $# -gt 0 ]; do
+            case "${1}" in
+                --mode)
+                    _mode="${2:-merge}"
+                    shift 2
+                    ;;
+                --mode=*)
+                    _mode="${1#*=}"
+                    shift
+                    ;;
+                *)
+                    if [ -z "${_target_path}" ]; then
+                        _target_path="${1}"
+                    fi
+                    shift
+                    ;;
+            esac
+        done
+
+        _today=$(date +%Y-%m-%d)
+        if [ -z "${_target_path}" ] || [ "${_target_path}" = "~" ]; then
+            if [ -f "${HOME}/openpreset-backup-${_today}.json" ]; then
+                _target_file="${HOME}/openpreset-backup-${_today}.json"
+            else
+                _latest=$(find "${HOME}" -maxdepth 1 -name 'openpreset-backup-*.json' 2>/dev/null | sort -r | head -n 1 || true)
+                if [ -n "${_latest}" ]; then
+                    _target_file="${_latest}"
+                else
+                    _target_file="${HOME}/openpreset-backup-${_today}.json"
                 fi
-                exec "${_agent}" "$@"
-                ;;
-        esac
+            fi
+        else
+            _target_path=$(printf '%s\n' "${_target_path}" | sed "s|^~|${HOME}|")
+            _target_file="${_target_path}"
+        fi
+
+        if [ -n "${_ROUTER_PATH:-}" ] && [ -f "${_ROUTER_DIR}/router_engine.sh" ]; then
+            . "${_ROUTER_DIR}/router_engine.sh"
+            backup_import "${_target_file}" "${_mode}"
+        else
+            printf '%s\n' "❌ Router components not found." >&2
+            exit 1
+        fi
+        exit 0
+        ;;
+
+    reset)
+        _yes=false
+        for _arg in "$@"; do
+            case "${_arg}" in
+                -y|--yes) _yes=true ;;
+            esac
+        done
+
+        if [ "${_yes}" = "false" ]; then
+            printf 'Are you sure you want to reset openpreset user data and cache? [y/N] '
+            read -r _ans
+            case "$(printf '%s' "${_ans}" | tr '[:upper:]' '[:lower:]')" in
+                y|yes) ;;
+                *) printf '%s\n' "Reset cancelled."; exit 0 ;;
+            esac
+        fi
+
+        _cfg="${XDG_CONFIG_HOME:-${HOME}/.config}/openpreset"
+        _legacy_cfg="${XDG_CONFIG_HOME:-${HOME}/.config}/claude-router"
+        _cache="${XDG_CACHE_HOME:-${HOME}/.cache}/openpreset"
+
+        rm -rf "${_cfg}" "${_legacy_cfg}" "${_cache}"
+        printf '%s\n' "✅ openpreset user data and cache reset successfully."
+        exit 0
+        ;;
+
+    refresh)
+        _cache="${XDG_CACHE_HOME:-${HOME}/.cache}/openpreset"
+        rm -rf "${_cache}"
+        printf '%s\n' "✅ openpreset model and provider cache refreshed."
+        exit 0
+        ;;
+
+    uninstall)
+        _remove_data=false
+        _yes=false
+        for _arg in "$@"; do
+            case "${_arg}" in
+                -r|--remove-data) _remove_data=true ;;
+                -y|--yes) _yes=true ;;
+            esac
+        done
+
+        if [ "${_yes}" = "false" ]; then
+            if [ "${_remove_data}" = "true" ]; then
+                printf 'Are you sure you want to uninstall openpreset and delete all user data and cache? [y/N] '
+            else
+                printf 'Are you sure you want to uninstall openpreset? [y/N] '
+            fi
+            read -r _ans
+            case "$(printf '%s' "${_ans}" | tr '[:upper:]' '[:lower:]')" in
+                y|yes) ;;
+                *) printf '%s\n' "Uninstall cancelled."; exit 0 ;;
+            esac
+        fi
+
+        _THIS=$(_resolve_self "$0")
+        _THIS_DIR=$(dirname "${_THIS}")
+
+        # Locate binaries and share dir
+        _bin_dirs="${_THIS_DIR} ${HOME}/.local/bin /usr/local/bin"
+        _launchers="cr kr hr or pr clr openpreset"
+
+        for _d in ${_bin_dirs}; do
+            [ -d "${_d}" ] || continue
+            for _l in ${_launchers}; do
+                if [ -f "${_d}/${_l}" ]; then
+                    rm -f "${_d}/${_l}" 2>/dev/null || true
+                fi
+            done
+        done
+
+        _share_dirs="${HOME}/.local/share/openpreset /usr/local/share/openpreset $(dirname "${_THIS_DIR}")/share/openpreset"
+        for _sd in ${_share_dirs}; do
+            if [ -d "${_sd}" ]; then
+                rm -rf "${_sd}" 2>/dev/null || true
+            fi
+        done
+
+        if [ "${_remove_data}" = "true" ]; then
+            _cfg="${XDG_CONFIG_HOME:-${HOME}/.config}/openpreset"
+            _legacy_cfg="${XDG_CONFIG_HOME:-${HOME}/.config}/claude-router"
+            _cache="${XDG_CACHE_HOME:-${HOME}/.cache}/openpreset"
+            rm -rf "${_cfg}" "${_legacy_cfg}" "${_cache}"
+            printf '%s\n' "✅ openpreset tool and user data deleted successfully."
+        else
+            printf '%s\n' "✅ openpreset tool uninstalled successfully."
+        fi
+        exit 0
         ;;
 
     help|-h|--help)
@@ -170,10 +318,14 @@ LAUNCHERS:
     clr           Launch Cline (cline)
 
 COMMANDS:
-    update [--force|-f] Check for updates and install latest release
-    version       Print openpreset version
-    launch <agent> Launch specific agent with router settings
-    help          Show this help message
+    update [--force|-f]              Check for updates and install latest release
+    export [<path>]                  Export user models and presets (default: ~)
+    import [<path>] [--mode <mode>]  Import user models and presets (default: ~)
+    reset [-y]                       Reset user configuration, presets, and cache
+    refresh                          Clear model and provider cache
+    uninstall [-r] [-y]              Uninstall openpreset tool (-r to delete user data)
+    version                          Print openpreset version
+    help                             Show this help message
 
 ENVIRONMENT:
     OPENROUTER_API_KEY   OpenRouter API token (or ANTHROPIC_AUTH_TOKEN)

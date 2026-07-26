@@ -573,12 +573,13 @@ _router_preset_delete() {
 # ── Backup actions ───────────────────────────────────────────────────────────
 
 _router_preset_export() {
-    _default_path="./openpreset-backup-$(date +%Y-%m-%d).json"
+    _safe_model=$(printf '%s' "${_ROUTER_MODEL}" | tr '/' '-')
+    _default_path="./openpreset-${_safe_model}-backup-$(date +%Y-%m-%d).json"
     printf '  Output file [%s]: ' "${_default_path}" >&2
     read -r _path
     [ -n "${_path}" ] || _path="${_default_path}"
-    backup_export "${_path}"
-    unset _default_path _path
+    backup_export_model "${_ROUTER_MODEL}" "${_path}"
+    unset _safe_model _default_path _path
 }
 
 _router_preset_import() {
@@ -587,7 +588,7 @@ _router_preset_import() {
 
     _mode=$(prompt_import_mode) || { unset _path _mode; return 1; }
 
-    printf '  Import "%s" (%s)? (y/N) ' "${_path}" "${_mode}" >&2
+    printf '  Import "%s" (%s) for model %s? (y/N) ' "${_path}" "${_mode}" "${_ROUTER_MODEL}" >&2
     read -r _confirm
     _lc=$(to_lower "${_confirm}")
     if [ "${_lc}" != 'y' ]; then
@@ -595,7 +596,7 @@ _router_preset_import() {
         return 0
     fi
 
-    backup_import "${_path}" "${_mode}"
+    backup_import_model "${_ROUTER_MODEL}" "${_path}" "${_mode}"
     unset _path _mode _confirm _lc
 }
 

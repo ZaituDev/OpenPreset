@@ -5,6 +5,25 @@ All notable changes to OpenPreset will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.1.0] - 2026-07-26
+
+### Added
+- **Subcommand `openpreset export [path]`**: Export user models and presets to a portable JSON backup file. Defaults to `~/openpreset-backup-YYYY-MM-DD.json` if path is omitted or `~`.
+- **Subcommand `openpreset import [path] [--mode <merge|replace>]`**: Import user models and presets from a backup file. Defaults to `~/openpreset-backup-YYYY-MM-DD.json` (or latest backup in `~`) if path is omitted or `~`.
+- **Subcommand `openpreset uninstall [-r] [-y]`**: Self-uninstall command with `[y/N]` confirmation prompt (skippable via `-y`). Removes tool launchers and shared components. Accepts `-r` / `--remove-data` flag to also delete user data (`~/.config/openpreset`) and cache (`~/.cache/openpreset`).
+- **Subcommand `openpreset reset [-y]`**: Reset user data with `[y/N]` confirmation prompt (skippable via `-y`) to delete user configuration and cache.
+- **Subcommand `openpreset refresh`**: Clear cached model lists and provider endpoint data in `~/.cache/openpreset`.
+- **Model-Scoped Preset Import/Export**: Updated Preset Menu shortcuts (Ctrl+I for import, Ctrl+X for export) to operate strictly on the presets belonging to the currently selected model (`_ROUTER_MODEL`).
+- **Model Backup API (`backup_export_model` & `backup_import_model`)**: Added model-scoped backup export and import functions in `router/backup.sh`.
+
+### Removed
+- **Subcommand `openpreset launch <agent>`**: Removed legacy agent launcher subcommand in favor of direct agent launchers (`cr`, `kr`, `hr`, `or`, `pr`, `clr`).
+
+### Fixed
+- **Directory Creation Guard in `backup_import`**: Ensured target configuration directory (`CONFIG_DIR`) is created before writing `USER_MODELS_FILE` during import operations.
+
+---
+
 ## [v2.0.0] - 2026-07-26
 
 ### Added
