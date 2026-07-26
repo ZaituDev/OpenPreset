@@ -3,7 +3,7 @@
 set -eu
 
 SCRIPT_DIR=$(cd -P "$(dirname "$0")" && pwd)
-VERSION="1.0.0"
+VERSION="${1:-2.0.0}"
 PACKAGE_NAME="openpreset-v${VERSION}"
 DIST_DIR="${SCRIPT_DIR}/dist"
 BUILD_DIR="${DIST_DIR}/${PACKAGE_NAME}"
@@ -19,6 +19,7 @@ cp -r "${SCRIPT_DIR}/router" "${BUILD_DIR}/"
 cp -r "${SCRIPT_DIR}/extras" "${BUILD_DIR}/" 2>/dev/null || true
 cp "${SCRIPT_DIR}/install.sh" "${BUILD_DIR}/" 2>/dev/null || true
 cp "${SCRIPT_DIR}/README.md" "${BUILD_DIR}/"
+cp "${SCRIPT_DIR}/CHANGELOG.md" "${BUILD_DIR}/" 2>/dev/null || true
 cp "${SCRIPT_DIR}/LICENSE" "${BUILD_DIR}/" 2>/dev/null || true
 
 cd "${DIST_DIR}"

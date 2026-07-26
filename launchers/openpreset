@@ -62,21 +62,66 @@ case "${_cmd}" in
         ;;
 
     update|upgrade)
-        printf '%s\n' "🔄 Checking for openpreset updates from ${REPO}..."
+        _force=false
+        for _arg in "$@"; do
+            case "${_arg}" in
+                -f|--force)
+                    _force=true
+                    ;;
+            esac
+        done
+
+        printf '%s\n' "Checking for new updates..."
+
         _tmp_dir=$(mktemp -d)
         cleanup() { rm -rf "${_tmp_dir}"; }
         trap cleanup EXIT INT TERM
 
         _install_url="https://raw.githubusercontent.com/${REPO}/main/install.sh"
-        printf '%s\n' "📥 Fetching latest installer from ${_install_url}..."
-        
-        if curl -fsSL "${_install_url}" -o "${_tmp_dir}/install.sh"; then
-            chmod +x "${_tmp_dir}/install.sh"
-            printf '%s\n' "🚀 Running update installation..."
-            sh "${_tmp_dir}/install.sh"
-            printf '%s\n' "✅ openpreset successfully updated!"
-        else
+        if ! curl -fsSL "${_install_url}" -o "${_tmp_dir}/install.sh" 2>/dev/null; then
             printf '%s\n' "❌ Failed to download update script from GitHub repository." >&2
+            exit 1
+        fi
+        chmod +x "${_tmp_dir}/install.sh"
+
+        _api_url="https://api.github.com/repos/${REPO}/releases/latest"
+        _latest_tag=""
+        _api_json=$(curl -fsSL "${_api_url}" 2>/dev/null || true)
+        if [ -n "${_api_json}" ]; then
+            if command -v jq >/dev/null 2>&1; then
+                _latest_tag=$(printf '%s' "${_api_json}" | jq -r '.tag_name // empty' 2>/dev/null || true)
+            fi
+            if [ -z "${_latest_tag}" ]; then
+                _latest_tag=$(printf '%s' "${_api_json}" | grep -o '"tag_name": *"[^"]*"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/' 2>/dev/null || true)
+            fi
+        fi
+
+        if [ -z "${_latest_tag}" ]; then
+            _latest_tag=$(sed -n 's/^VERSION="\([^"]*\)"/\1/p' "${_tmp_dir}/install.sh" 2>/dev/null || true)
+        fi
+
+        _curr_v="${VERSION#v}"
+        _latest_v="${_latest_tag#v}"
+
+        if [ -z "${_latest_v}" ]; then
+            _latest_v="${_curr_v}"
+        fi
+
+        if [ "${_curr_v}" = "${_latest_v}" ] && [ "${_force}" = "false" ]; then
+            printf '%s\n' "Already the newest version v${_curr_v}"
+            exit 0
+        fi
+
+        if [ "${_curr_v}" != "${_latest_v}" ]; then
+            printf '%s\n' "New version found: v${_latest_v}"
+        fi
+
+        printf '%s\n' "Updating..."
+        if sh "${_tmp_dir}/install.sh" >"${_tmp_dir}/install.log" 2>&1; then
+            printf '%s\n' "✅ Successfully updated to v${_latest_v}"
+        else
+            printf '%s\n' "❌ Update failed:" >&2
+            cat "${_tmp_dir}/install.log" >&2
             exit 1
         fi
         exit 0
@@ -100,8 +145,8 @@ case "${_cmd}" in
             *)
                 if [ -n "${_ROUTER_PATH:-}" ]; then
                     . "${_ROUTER_DIR}/router_engine.sh"
-                    export CLAUDE_ROUTER_MODEL="__pick__"
-                    claude_router || exit 1
+                    export OPENPRESET_MODEL="__pick__"
+                    openpreset_router || exit 1
                 fi
                 exec "${_agent}" "$@"
                 ;;
@@ -125,7 +170,7 @@ LAUNCHERS:
     clr           Launch Cline (cline)
 
 COMMANDS:
-    update        Check for updates and install latest release
+    update [--force|-f] Check for updates and install latest release
     version       Print openpreset version
     launch <agent> Launch specific agent with router settings
     help          Show this help message

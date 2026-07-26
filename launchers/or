@@ -45,21 +45,16 @@ _ROUTER_PATH=$(_find_router_dir) || {
     exit 1
 }
 
+export OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
+export OPENAI_BASE_URL="${OPENAI_BASE_URL:-${OPENROUTER_BASE_URL}}"
+
 export _ROUTER_DIR="${_ROUTER_PATH}"
 . "${_ROUTER_DIR}/router_engine.sh"
 
-export OPENAI_BASE_URL="${OPENAI_BASE_URL:-https://openrouter.ai/api/v1}"
-if [ -n "${OPENROUTER_API_KEY:-}" ] && [ -z "${ANTHROPIC_AUTH_TOKEN:-}" ]; then
-    export ANTHROPIC_AUTH_TOKEN="${OPENROUTER_API_KEY}"
-fi
-if [ -n "${ANTHROPIC_AUTH_TOKEN:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
-    export OPENROUTER_API_KEY="${ANTHROPIC_AUTH_TOKEN}"
-fi
+export OPENPRESET_MODEL="__pick__"
+openpreset_router || exit 1
 
-export CLAUDE_ROUTER_MODEL="__pick__"
-claude_router || exit 1
-
-_SELECTED="${OPENROUTER_MODEL:-${ANTHROPIC_MODEL:-}}"
+_SELECTED="${OPENROUTER_MODEL:-}"
 export OPENCLAW_MODEL="${_SELECTED}"
 
 exec openclaw "$@"

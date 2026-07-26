@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # router_engine.sh — main orchestrator
 # The only file that braining and superpowers source.
-# Defines one public function: claude_router
+# Defines one public function: openpreset_router
 # All business logic lives here; modules handle one concern each.
 #
 # Portable POSIX sh — no zsh required. Runs under bash, dash, ksh, and any
@@ -41,7 +41,7 @@ fi
 # Public entry point
 # ══════════════════════════════════════════════════════════════════════════
 
-claude_router() {
+openpreset_router() {
     _router_validate_environment || return 1
 
     _step=1
@@ -59,7 +59,7 @@ claude_router() {
                 _rc_s2=0
                 _router_select_routing_mode || _rc_s2=$?
                 if [ "${_rc_s2}" -ne 0 ]; then
-                    if [ "${_rc_s2}" -eq 2 ] || [ "${CLAUDE_ROUTER_MODEL}" != '__pick__' ]; then
+                    if [ "${_rc_s2}" -eq 2 ] || [ "${OPENPRESET_MODEL}" != '__pick__' ]; then
                         return 1
                     fi
                     _step=1
@@ -82,7 +82,7 @@ claude_router() {
                         if [ "${_rc_s3}" -eq 2 ]; then
                             return 1
                         fi
-                        if [ -n "${CLAUDE_ROUTER_MODE:-}" ] && [ "${CLAUDE_ROUTER_MODE}" != '__pick__' ]; then
+                        if [ -n "${OPENPRESET_MODE:-}" ] && [ "${OPENPRESET_MODE}" != '__pick__' ]; then
                             _step=1
                         else
                             _step=2
@@ -116,12 +116,10 @@ _router_validate_environment() {
     fi
     unset _missing
 
-    [ -n "${ANTHROPIC_BASE_URL}" ] \
-        || { die "ANTHROPIC_BASE_URL is not set."; return 1; }
-    [ -n "${ANTHROPIC_AUTH_TOKEN}" ] \
-        || { die "ANTHROPIC_AUTH_TOKEN is not set."; return 1; }
-    [ -n "${CLAUDE_ROUTER_MODEL}" ] \
-        || { die "CLAUDE_ROUTER_MODEL is not set."; return 1; }
+    [ -n "${OPENROUTER_API_KEY}" ] \
+        || { die "OPENROUTER_API_KEY is not set."; return 1; }
+    [ -n "${OPENPRESET_MODEL}" ] \
+        || { die "OPENPRESET_MODEL is not set."; return 1; }
 }
 
 # ── Step 2 — Model selection ────────────────────────────────────────────────
@@ -130,12 +128,12 @@ _router_validate_environment() {
 # strings and iterated with `while IFS= read -r`.
 
 _router_select_model() {
-    if [ "${CLAUDE_ROUTER_MODEL}" != '__pick__' ]; then
-        _ROUTER_MODEL="${CLAUDE_ROUTER_MODEL}"
+    if [ "${OPENPRESET_MODEL}" != '__pick__' ]; then
+        _ROUTER_MODEL="${OPENPRESET_MODEL}"
         return 0
     fi
 
-    _default_models="${CLAUDE_ROUTER_DEFAULT_MODELS}"
+    _default_models="${OPENPRESET_DEFAULT_MODELS}"
     _user_models=$(_router_load_user_models)
     _all_models=$(_router_merge_model_lists "${_default_models}" "${_user_models}")
 
@@ -260,10 +258,10 @@ _router_handle_manage_menu() {
 # ── Step 3 — Routing mode ───────────────────────────────────────────────────
 
 _router_select_routing_mode() {
-    if [ -n "${CLAUDE_ROUTER_MODE}" ]; then
-        case "${CLAUDE_ROUTER_MODE}" in
-            direct|preset) _ROUTER_MODE="${CLAUDE_ROUTER_MODE}"; return 0 ;;
-            *) die "Unknown CLAUDE_ROUTER_MODE: ${CLAUDE_ROUTER_MODE}"; return 1 ;;
+    if [ -n "${OPENPRESET_MODE}" ]; then
+        case "${OPENPRESET_MODE}" in
+            direct|preset) _ROUTER_MODE="${OPENPRESET_MODE}"; return 0 ;;
+            *) die "Unknown OPENPRESET_MODE: ${OPENPRESET_MODE}"; return 1 ;;
         esac
     fi
     _prm_res=$(prompt_routing_mode)
@@ -282,11 +280,7 @@ _router_select_routing_mode() {
 # ── Direct mode ──────────────────────────────────────────────────────────────
 
 _router_run_direct() {
-    export ANTHROPIC_MODEL="${_ROUTER_MODEL}"
     export OPENROUTER_MODEL="${_ROUTER_MODEL}"
-    if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]; then
-        export OPENROUTER_API_KEY="${ANTHROPIC_AUTH_TOKEN}"
-    fi
     show_success "${_ROUTER_MODEL}"
 }
 
@@ -412,14 +406,14 @@ _router_choose_provider_order() {
     _ROUTER_PROVIDER_INTEL=$(provider_intel_all "${_ROUTER_MODEL}")
     export _ROUTER_PROVIDER_INTEL
 
-    if [ -n "${CLAUDE_ROUTER_PROFILE}" ]; then
-        case "${CLAUDE_ROUTER_PROFILE}" in
+    if [ -n "${OPENPRESET_PROFILE}" ]; then
+        case "${OPENPRESET_PROFILE}" in
             balanced)
                 _ROUTER_ORDERED_PROVIDERS="${_ROUTER_PROVIDERS}"
                 return 0
                 ;;
             *)
-                die "Unknown CLAUDE_ROUTER_PROFILE: ${CLAUDE_ROUTER_PROFILE}"
+                die "Unknown OPENPRESET_PROFILE: ${OPENPRESET_PROFILE}"
                 return 1
                 ;;
         esac
@@ -453,11 +447,7 @@ _router_choose_provider_order() {
 
 _router_preset_launch() {
     _slug="${1:?_router_preset_launch requires a slug}"
-    export ANTHROPIC_MODEL="@preset/${_slug}"
     export OPENROUTER_MODEL="@preset/${_slug}"
-    if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -n "${ANTHROPIC_AUTH_TOKEN:-}" ]; then
-        export OPENROUTER_API_KEY="${ANTHROPIC_AUTH_TOKEN}"
-    fi
     show_success "@preset/${_slug}"
     unset _slug
 }
@@ -583,7 +573,7 @@ _router_preset_delete() {
 # ── Backup actions ───────────────────────────────────────────────────────────
 
 _router_preset_export() {
-    _default_path="./claude-router-backup-$(date +%Y-%m-%d).json"
+    _default_path="./openpreset-backup-$(date +%Y-%m-%d).json"
     printf '  Output file [%s]: ' "${_default_path}" >&2
     read -r _path
     [ -n "${_path}" ] || _path="${_default_path}"

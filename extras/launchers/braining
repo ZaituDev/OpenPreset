@@ -11,9 +11,9 @@
 # `superpowers` (or a manual unset) clears them.
 #
 # Follows the minimal launcher contract (see extras/launchers/template):
-#   1. set CLAUDE_ROUTER_DEFAULT_MODELS
-#   2. set CLAUDE_ROUTER_MODEL
-#   3. source router/router_engine.sh, call claude_router
+#   1. set OPENPRESET_DEFAULT_MODELS
+#   2. set OPENPRESET_MODEL
+#   3. source router/router_engine.sh, call openpreset_router
 #   4. exec claude (here: a slash-command, not raw passthrough)
 # Everything else (default model list, behavioural env vars) is
 # workflow-specific and owned entirely by this launcher, not the router.
@@ -43,24 +43,27 @@ else
     _BRAINING_REPO_DIR="${_BRAINING_PARENT_DIR}"              # launchers/braining        -> repo root
 fi
 
+export OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-${OPENROUTER_BASE_URL}}"
+
 # ── Default model list ───────────────────────────────────────────────────────
 # Newline-joined string (POSIX sh has no arrays). User additions are managed
-# interactively or stored in $XDG_CONFIG_HOME/claude-router/user-models.txt.
+# interactively or stored in $XDG_CONFIG_HOME/openpreset/user-models.txt.
 
-export CLAUDE_ROUTER_DEFAULT_MODELS="openrouter/auto
+export OPENPRESET_DEFAULT_MODELS="openrouter/auto
 cohere/north-mini-code
 deepseek/deepseek-v4-flash"
 
 # ── Model selection ──────────────────────────────────────────────────────────
 
-export CLAUDE_ROUTER_MODEL="__pick__"
+export OPENPRESET_MODEL="__pick__"
 
 # ── Load and run the router ──────────────────────────────────────────────────
 
 export _ROUTER_DIR="${_BRAINING_REPO_DIR}/router"
 # shellcheck source=../../router/router_engine.sh
 . "${_ROUTER_DIR}/router_engine.sh"
-claude_router || return 1
+openpreset_router || return 1
 
 # ── Claude behaviour ─────────────────────────────────────────────────────────
 

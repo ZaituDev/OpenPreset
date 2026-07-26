@@ -10,17 +10,19 @@
 # You do not need to read or modify anything under router/.
 #
 # THE CONTRACT (this is the entire job of a launcher):
-#   1. (optional) set CLAUDE_ROUTER_DEFAULT_MODELS — newline-joined model ids
+#   1. (optional) export OPENROUTER_BASE_URL (defaults to https://openrouter.ai/api/v1)
+#      and export agent base URL (e.g., ANTHROPIC_BASE_URL or OPENAI_BASE_URL)
+#   2. (optional) set OPENPRESET_DEFAULT_MODELS — newline-joined model ids
 #      offered in the picker. Omit to use the router's built-in default.
-#   2. set CLAUDE_ROUTER_MODEL — usually "__pick__" to open the picker, or a
+#   3. set OPENPRESET_MODEL — usually "__pick__" to open the picker, or a
 #      specific model id to skip the picker entirely.
-#   3. source router/router_engine.sh and call claude_router.
-#   4. on success, exec claude — pass "$@" through unless your launcher has
-#      a specific reason to rewrite the arguments (see braining for that).
+#   4. source router/router_engine.sh and call openpreset_router.
+#   5. on success, export agent model (e.g. ANTHROPIC_MODEL="${OPENROUTER_MODEL}")
+#      and exec target agent CLI.
 #
 # Everything else — behavioural env vars, custom flags, prompts — is yours.
 # The router never reads anything launcher-specific; it only reads the
-# CLAUDE_ROUTER_* and ANTHROPIC_* env vars documented in the README.
+# OPENPRESET_* and OPENROUTER_* env vars.
 #
 # Portable POSIX sh — no zsh required. Copy this file as-is; the path
 # resolution below works unmodified after copying into launchers/.
@@ -53,22 +55,27 @@ else
     REPO_DIR="${_THIS_PARENT_DIR}"              # launchers/<name>          -> repo root
 fi
 
-# ── 1. (optional) default model list ────────────────────────────────────────
+# ── 1. base URL translation ────────────────────────────────────────────────
+export OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-${OPENROUTER_BASE_URL}}"
 
-# export CLAUDE_ROUTER_DEFAULT_MODELS="openrouter/auto
+# ── 2. (optional) default model list ────────────────────────────────────────
+
+# export OPENPRESET_DEFAULT_MODELS="openrouter/auto
 # some-other/model"
 
-# ── 2. model selection ───────────────────────────────────────────────────────
+# ── 3. model selection ───────────────────────────────────────────────────────
 
-export CLAUDE_ROUTER_MODEL="__pick__"
+export OPENPRESET_MODEL="__pick__"
 
-# ── 3. load and run the router ───────────────────────────────────────────────
+# ── 4. load and run the router ───────────────────────────────────────────────
 
 export _ROUTER_DIR="${REPO_DIR}/router"
 # shellcheck source=../../router/router_engine.sh
 . "${_ROUTER_DIR}/router_engine.sh"
-claude_router || exit 1
+openpreset_router || exit 1
 
-# ── 4. launch ─────────────────────────────────────────────────────────────────
+# ── 5. launch ─────────────────────────────────────────────────────────────────
 
+export ANTHROPIC_MODEL="${OPENROUTER_MODEL:-}"
 exec claude "$@"

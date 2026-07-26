@@ -3,7 +3,7 @@
 # Usage: curl -fsSL https://raw.githubusercontent.com/zaidsubhani135/claude-router/main/install.sh | sh
 set -eu
 
-VERSION="1.0.0"
+VERSION="2.0.0"
 REPO="zaidsubhani135/claude-router"
 TARBALL_NAME="openpreset-v${VERSION}.tar.gz"
 TARBALL_URL="https://github.com/${REPO}/releases/download/v${VERSION}/${TARBALL_NAME}"

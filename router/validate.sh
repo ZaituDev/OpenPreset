@@ -19,12 +19,12 @@ _ROOT=$(dirname "${_TEST_DIR}")
 
 export XDG_CACHE_HOME="/tmp/cr-test-cache-$$"
 export XDG_CONFIG_HOME="/tmp/cr-test-config-$$"
-export ANTHROPIC_BASE_URL="https://openrouter.ai/api/v1"
-export ANTHROPIC_AUTH_TOKEN="sk-test-fake"
-export CLAUDE_ROUTER_MODEL="test/model"
+export OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
+export OPENROUTER_API_KEY="sk-or-v1-test-fake"
+export OPENPRESET_MODEL="test/model"
 
-mkdir -p "${XDG_CACHE_HOME}/claude-router/endpoints"
-mkdir -p "${XDG_CONFIG_HOME}/claude-router/presets"
+mkdir -p "${XDG_CACHE_HOME}/openpreset/endpoints"
+mkdir -p "${XDG_CONFIG_HOME}/openpreset/presets"
 
 # shellcheck source=config.sh
 . "${_ROOT}/router/config.sh"

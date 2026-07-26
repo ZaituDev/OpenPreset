@@ -4,8 +4,8 @@
 
 # ── openpreset Version & Repo Info ───────────────────────────────────────
 
-OPENPRESET_VERSION="1.0.0"
-OPENPRESET_REPO="zaidsubhani135/claude-router"
+OPENPRESET_VERSION="${OPENPRESET_VERSION:-2.0.0}"
+OPENPRESET_REPO="${OPENPRESET_REPO:-zaidsubhani135/claude-router}"
 
 # ── XDG-compliant paths ────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/openpreset"
 
 CACHE_FILE="${CACHE_DIR}/models.json"
 CACHE_TIMESTAMP="${CACHE_DIR}/models.timestamp"
-CACHE_TTL="${CLAUDE_ROUTER_CACHE_TTL:-900}"
+CACHE_TTL="${OPENPRESET_CACHE_TTL:-900}"
 
 # ── User data ───────────────────────────────────────────────────────────────
 
@@ -32,15 +32,16 @@ PRESETS_DIR="${CONFIG_DIR}/presets"
 
 # ── OpenRouter ──────────────────────────────────────────────────────────────
 
-PRESET_PREFIX="claude"
-OPENROUTER_API="https://openrouter.ai/api/v1"
+PRESET_PREFIX="openpreset"
+OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
+OPENROUTER_API="${OPENROUTER_BASE_URL}"
 
 # ── Default models ──────────────────────────────────────────────────────────
 # Newline-joined string (not an array — POSIX sh has no arrays). A launcher
-# may set CLAUDE_ROUTER_DEFAULT_MODELS itself; only fall back here if unset.
+# may set OPENPRESET_DEFAULT_MODELS itself; only fall back here if unset.
 
-if [ -z "${CLAUDE_ROUTER_DEFAULT_MODELS+x}" ]; then
-    CLAUDE_ROUTER_DEFAULT_MODELS="openrouter/free"
+if [ -z "${OPENPRESET_DEFAULT_MODELS+x}" ]; then
+    OPENPRESET_DEFAULT_MODELS="openrouter/free"
 fi
 
 # ── Optional overrides (must default to empty, not unset) ──────────────────
@@ -48,8 +49,8 @@ fi
 # an interactive prompt. Default to "" so the check is always meaningful even
 # under `set -u`.
 
-: "${CLAUDE_ROUTER_MODE:=}"
-: "${CLAUDE_ROUTER_PROFILE:=}"
+: "${OPENPRESET_MODE:=}"
+: "${OPENPRESET_PROFILE:=}"
 
 # ── Backup ──────────────────────────────────────────────────────────────────
 

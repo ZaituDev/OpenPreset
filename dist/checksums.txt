@@ -1,1 +1,1 @@
-fc1f833c73df4eb2dbbff2473c683bb9553741a6af82020e389dbb4e1b64d7c4  openpreset-v1.0.0.tar.gz
+67b6e2dcca829b4cb017451c1038400629dfa912f8ad550a5d18668cce56ad6e  openpreset-v2.0.0.tar.gz

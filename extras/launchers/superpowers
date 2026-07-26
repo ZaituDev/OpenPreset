@@ -11,9 +11,9 @@
 # which only works if both run in the same shell.
 #
 # Follows the minimal launcher contract (see extras/launchers/template):
-#   1. set CLAUDE_ROUTER_DEFAULT_MODELS
-#   2. set CLAUDE_ROUTER_MODEL
-#   3. source router/router_engine.sh, call claude_router
+#   1. set OPENPRESET_DEFAULT_MODELS
+#   2. set OPENPRESET_MODEL
+#   3. source router/router_engine.sh, call openpreset_router
 #   4. exec claude "$@"
 # Everything else (the default model list, the env var cleanup) is
 # workflow-specific and owned entirely by this launcher, not the router.
@@ -37,9 +37,12 @@ else
     _SUPERPOWERS_REPO_DIR="${_SUPERPOWERS_PARENT_DIR}"              # launchers/superpowers        -> repo root
 fi
 
+export OPENROUTER_BASE_URL="${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}"
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-${OPENROUTER_BASE_URL}}"
+
 # ── Default model list ───────────────────────────────────────────────────────
 
-export CLAUDE_ROUTER_DEFAULT_MODELS="openrouter/auto
+export OPENPRESET_DEFAULT_MODELS="openrouter/auto
 cohere/north-mini-code
 deepseek/deepseek-v4-flash
 xiaomi/mimo-v2.5-pro
@@ -47,14 +50,14 @@ deepseek/deepseek-v4-pro"
 
 # ── Model selection ──────────────────────────────────────────────────────────
 
-export CLAUDE_ROUTER_MODEL="__pick__"
+export OPENPRESET_MODEL="__pick__"
 
 # ── Load and run the router ──────────────────────────────────────────────────
 
 export _ROUTER_DIR="${_SUPERPOWERS_REPO_DIR}/router"
 # shellcheck source=../../router/router_engine.sh
 . "${_ROUTER_DIR}/router_engine.sh"
-claude_router || return 1
+openpreset_router || return 1
 
 # ── Claude behaviour ─────────────────────────────────────────────────────────
 

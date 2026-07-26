@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
 # openrouter.sh — OpenRouter REST API surface
 # No jq parsing beyond decoding responses. No UI. No preset business logic.
-# Authenticates with ANTHROPIC_AUTH_TOKEN.
+# Authenticates with OPENROUTER_API_KEY.
 
 # ── Internal helper ──────────────────────────────────────────────────────────
 
 _get_or_token() {
-    printf '%s' "${OPENROUTER_API_KEY:-${ANTHROPIC_AUTH_TOKEN:-}}"
+    printf '%s' "${OPENROUTER_API_KEY:-}"
 }
 
 _or_curl() {
@@ -69,7 +69,7 @@ delete_preset() {
 verify_api_key() {
     _token=$(_get_or_token)
     [ -n "${_token}" ] \
-        || { warn "Neither OPENROUTER_API_KEY nor ANTHROPIC_AUTH_TOKEN is set."; return 1; }
+        || { warn "OPENROUTER_API_KEY is not set."; return 1; }
 
     _vak_response=$(_or_curl "${OPENROUTER_API}/auth/key") \
         || { warn "API key verification request failed."; unset _vak_response _token; return 1; }

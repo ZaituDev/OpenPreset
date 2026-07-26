@@ -8,7 +8,7 @@
 # Usage: backup_export [output-path]
 # If output-path is omitted, a timestamped file is written to the current dir.
 backup_export() {
-    _outfile="${1:-./claude-router-backup-$(date +%Y-%m-%d).json}"
+    _outfile="${1:-./openpreset-backup-$(date +%Y-%m-%d).json}"
 
     # Collect all user models.
     if [ -f "${USER_MODELS_FILE}" ]; then

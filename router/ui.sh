@@ -35,7 +35,7 @@ print_header() {
     _model="${1:-unknown}"
     printf '\n'
     printf '╔══════════════════════════════════════════════╗\n'
-    printf '║  🔀  Claude Router                           ║\n'
+    printf '║  🔀  OpenPreset Router                       ║\n'
     printf '║  Model: %-36s║\n' "${_model}"
     printf '╚══════════════════════════════════════════════╝\n'
     printf '\n'
@@ -953,7 +953,7 @@ prompt_import_mode() {
 show_success() {
     _value="${1:-}"
     printf '\n'
-    printf '  ✅  ANTHROPIC_MODEL=%s\n' "${_value}"
+    printf '  ✅  OPENROUTER_MODEL=%s\n' "${_value}"
     printf '\n'
     unset _value
 }
