@@ -2,7 +2,7 @@
 
 A lightweight, portable POSIX terminal suite for model & provider routing through [OpenRouter](https://openrouter.ai), with live cost/latency/uptime data, reusable presets, and dedicated launchers for top AI coding agents: **Claude Code (`cr`)**, **Kilo Code (`kr`)**, **Hermes Agent (`hr`)**, **OpenClaw (`or`)**, **Pi Agent (`pr`)**, and **Cline (`clr`)**.
 
-[main-demo.webm](https://github.com/user-attachments/assets/ae40e5c6-689b-45e7-8a18-09d62edca2a5)
+https://github.com/user-attachments/assets/d9f5ce5a-8e1f-4303-b9ae-e92c462eaf56
 
 ## What is  OpenPreset?
 
