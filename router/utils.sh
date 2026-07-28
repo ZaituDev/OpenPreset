@@ -7,7 +7,7 @@
 # Never calls exit — router_engine.sh is sourced, so exit would kill the
 # user's shell. Callers are responsible for propagating the return value.
 die() {
-    printf '%s\n' "❌ $*" >&2
+    printf '%s\n' "✘ $*" >&2
     return 1
 }
 

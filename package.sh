@@ -16,6 +16,7 @@ mkdir -p "${BUILD_DIR}"
 
 cp -r "${SCRIPT_DIR}/launchers" "${BUILD_DIR}/"
 cp -r "${SCRIPT_DIR}/router" "${BUILD_DIR}/"
+cp -r "${SCRIPT_DIR}/assets" "${BUILD_DIR}/" 2>/dev/null || true
 cp -r "${SCRIPT_DIR}/extras" "${BUILD_DIR}/" 2>/dev/null || true
 cp "${SCRIPT_DIR}/install.sh" "${BUILD_DIR}/" 2>/dev/null || true
 cp "${SCRIPT_DIR}/README.md" "${BUILD_DIR}/"
@@ -35,7 +36,7 @@ elif command -v shasum >/dev/null 2>&1; then
     shasum -a 256 "${TARBALL}" > checksums.txt
 fi
 
-printf '%s\n' "✅ Release tarball & checksum created in dist/:"
+printf '%s\n' "✓ Release tarball & checksum created in dist/:"
 printf '%s\n' "   - ${TARBALL} ($(du -h "${TARBALL}" | cut -f1))"
 printf '%s\n' "   - checksums.txt"
 printf '%s\n' ""

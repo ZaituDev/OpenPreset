@@ -41,7 +41,7 @@ _find_router_dir() {
 }
 
 _ROUTER_PATH=$(_find_router_dir) || {
-    printf '%s\n' "❌ openpreset router directory not found." >&2
+    printf '%s\n' "✘ openpreset router directory not found." >&2
     exit 1
 }
 

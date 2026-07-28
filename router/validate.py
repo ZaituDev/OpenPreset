@@ -16,12 +16,12 @@ FAIL = 0
 
 def ok(desc):
     global PASS
-    print(f"  ✅  {desc}")
+    print(f"  ✓  {desc}")
     PASS += 1
 
 def fail(desc, expected, got):
     global FAIL
-    print(f"  ❌  {desc}", file=sys.stderr)
+    print(f"  ✘  {desc}", file=sys.stderr)
     print(f"      expected: {expected}", file=sys.stderr)
     print(f"      got:      {got}", file=sys.stderr)
     FAIL += 1
@@ -359,7 +359,7 @@ assert_eq("preset provider[0].weight", preset_entry["providers"][0]["weight"], 1
 
 print()
 print("════════════════════════════════════════════════════════════════")
-print(f"  Results:  ✅ {PASS} passed   ❌ {FAIL} failed")
+print(f"  Results:  ✓ {PASS} passed   ✘ {FAIL} failed")
 print("════════════════════════════════════════════════════════════════")
 print()
 

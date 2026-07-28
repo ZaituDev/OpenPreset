@@ -29,6 +29,32 @@ _ui_warn_no_fzf() {
     warn "fzf not found — using numbered menus. Install fzf for the enhanced UI."
 }
 
+# ── Banner ───────────────────────────────────────────────────────────────────
+
+show_banner() {
+    _assets_dir="${_ROUTER_DIR}/../assets"
+    if [ ! -d "${_assets_dir}" ]; then
+        _assets_dir="${HOME}/.local/share/openpreset/assets"
+    fi
+    if [ ! -d "${_assets_dir}" ]; then
+        _assets_dir="/usr/local/share/openpreset/assets"
+    fi
+
+    _version_file="${CONFIG_DIR}/last_seen_version"
+    _current_ver="${OPENPRESET_VERSION:-2.1.0}"
+    _last_ver=""
+    [ -f "${_version_file}" ] && _last_ver=$(cat "${_version_file}" 2>/dev/null || true)
+
+    if [ "${_last_ver}" != "${_current_ver}" ] && [ -f "${_assets_dir}/lbanner.sh" ]; then
+        sh "${_assets_dir}/lbanner.sh"
+        mkdir -p "${CONFIG_DIR}" 2>/dev/null || true
+        printf '%s' "${_current_ver}" > "${_version_file}" 2>/dev/null || true
+    elif [ -f "${_assets_dir}/sbanner.sh" ]; then
+        sh "${_assets_dir}/sbanner.sh"
+    fi
+    unset _assets_dir _version_file _current_ver _last_ver
+}
+
 # ── Header ───────────────────────────────────────────────────────────────────
 
 print_header() {
@@ -51,7 +77,7 @@ _ui_fzf_model_selection() {
 "
     done
     _fzf_input="${_fzf_input}+ Add custom model…
-⚙ Manage saved models…"
+x Manage saved models…"
 
     _fzf_out=$(
         printf '%s' "${_fzf_input}" \
@@ -85,7 +111,7 @@ _ui_fzf_model_selection() {
 
     case "${_result}" in
         '+ Add custom model…') printf '%s\n' '__custom__' ;;
-        '⚙ Manage saved models…') printf '%s\n' '__manage__' ;;
+        'x Manage saved models…') printf '%s\n' '__manage__' ;;
         *) printf '%s\n' "${_result}" ;;
     esac
     unset _fzf_input _fzf_out _rc _key _result _m
@@ -101,8 +127,8 @@ show_model_list() {
         _i=$(( _i + 1 ))
     done
     printf '  ────────────────────────────────────────────\n' >&2
-    printf '  ➕  Enter custom model…\n' >&2
-    printf '  📝  Manage saved models…\n' >&2
+    printf '  + Enter custom model…\n' >&2
+    printf '  x Manage saved models…\n' >&2
     printf '\n' >&2
     unset _i _m
 }
@@ -283,8 +309,8 @@ show_manage_menu() {
 _ui_fzf_routing_mode() {
     _fzf_out=$(
         printf '%s\n%s\n' \
-            '🚀  Direct  — export model directly, no routing' \
-            '🎯  Preset  — provider ordering + OpenRouter preset' \
+            '1• Direct  — export model directly, no routing' \
+            '2• Preset  — provider ordering + OpenRouter preset' \
         | fzf \
             --prompt '  Launch mode › ' \
             --height '~40%' \
@@ -314,8 +340,8 @@ _ui_fzf_routing_mode() {
     esac
 
     case "${_result}" in
-        '🚀'*) printf '%s\n' 'direct' ;;
-        '🎯'*) printf '%s\n' 'preset' ;;
+        '1•'*) printf '%s\n' 'direct' ;;
+        '2•'*) printf '%s\n' 'preset' ;;
         *)     unset _fzf_out _rc _key _result; return 1 ;;
     esac
     unset _fzf_out _rc _key _result
@@ -333,8 +359,8 @@ prompt_routing_mode() {
     printf '\n' >&2
     printf '  Launch mode\n' >&2
     printf '  ────────────────────────────────────────────\n' >&2
-    printf '  1  🚀 Direct   (export model directly, no routing)\n' >&2
-    printf '  2  🎯 Preset   (provider ordering + OpenRouter preset)\n' >&2
+    printf '  1  Direct   (export model directly, no routing)\n' >&2
+    printf '  2  Preset   (provider ordering + OpenRouter preset)\n' >&2
     printf '\n' >&2
 
     while true; do
@@ -408,15 +434,35 @@ show_provider_table() {
 _ui_fzf_provider_order() {
     _intel_arr="${_ROUTER_PROVIDER_INTEL:-[]}"
 
-    # Write one temp file per sort order + one for raw intel JSON.
+    # Write one temp file per sort order + one for raw intel JSON + one for help guide.
     _tmp_name=$(mktemp)  || { warn "Cannot create temp file."; return 1; }
     _tmp_cost=$(mktemp)  || { rm -f "${_tmp_name}"; warn "Cannot create temp file."; return 1; }
     _tmp_lat=$(mktemp)   || { rm -f "${_tmp_name}" "${_tmp_cost}"; warn "Cannot create temp file."; return 1; }
     _tmp_up=$(mktemp)    || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}"; warn "Cannot create temp file."; return 1; }
     _tmp_tp=$(mktemp)    || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}"; warn "Cannot create temp file."; return 1; }
     _tmp_intel=$(mktemp) || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}"; warn "Cannot create temp file."; return 1; }
+    _tmp_help=$(mktemp)  || { rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}" "${_tmp_intel}"; warn "Cannot create temp file."; return 1; }
 
     printf '%s' "${_intel_arr}" > "${_tmp_intel}"
+
+    cat << 'EOF' > "${_tmp_help}"
+  SELECTION & NAVIGATION
+  · TAB          Select provider (select in order of priority)
+  · Enter        Confirm priority selection
+  · Esc          Go back to previous menu
+  · Ctrl+C       Cancel & exit
+
+  SORTING SHORTCUTS
+  · s            Sort by Cost (cheapest first)
+  · l            Sort by Latency (fastest TTFT first)
+  · u            Sort by Uptime (highest uptime % first)
+  · t            Sort by Throughput (tokens/sec highest)
+  · n            Sort by Name (alphabetical A-Z)
+
+  PREVIEW CARDS & HELP
+  · v            Toggle provider metrics info card
+  · ?            Toggle this help guide
+EOF
 
     # Populate all sort files. Falls back to provider name only when no intel.
     _has_intel=0
@@ -441,13 +487,6 @@ _ui_fzf_provider_order() {
         cp "${_tmp_name}" "${_tmp_tp}"
     fi
 
-    printf '\n' >&2
-    printf '  ── Provider Selection ──────────────────────────────────────\n' >&2
-    printf '  TAB to select · Enter to confirm · Esc to go back\n' >&2
-    printf '  Sort: s=cost  l=latency  u=uptime  t=throughput  n=name  v=info\n' >&2
-    printf '  Select in your desired priority order (first = highest priority)\n' >&2
-    printf '\n' >&2
-
     _fzf_out=$(
         fzf \
             --prompt '  Providers › ' \
@@ -456,24 +495,25 @@ _ui_fzf_provider_order() {
             --layout reverse \
             --border rounded \
             --preview ". \"${_ROUTER_DIR}/provider_intel.sh\"; provider_intel_verbose {1} \"\$(cat ${_tmp_intel})\"" \
-            --preview-window 'right:50%:hidden' \
-            --header '  TAB select · ↑↓ nav · s/l/u/t/n sort · v info card · Esc back · Ctrl+C cancel' \
+            --preview-window 'right:55%:hidden' \
+            --header "  Model: ${_ROUTER_MODEL:-unknown}  ·  TAB select  ·  s/l/u/t/n sort  ·  v info  ·  ? help" \
             --expect=ctrl-c \
             --bind "s:reload(cat ${_tmp_cost})" \
             --bind "l:reload(cat ${_tmp_lat})" \
             --bind "u:reload(cat ${_tmp_up})" \
             --bind "t:reload(cat ${_tmp_tp})" \
             --bind "n:reload(cat ${_tmp_name})" \
-            --bind 'v:toggle-preview' \
-            --bind '?:toggle-preview' \
+            --bind "v:change-preview(. \"${_ROUTER_DIR}/provider_intel.sh\"; provider_intel_verbose {1} \"\$(cat ${_tmp_intel})\")+toggle-preview" \
+            --bind "?:change-preview(cat ${_tmp_help})+toggle-preview" \
+            --bind "ctrl-/:change-preview(cat ${_tmp_help})+toggle-preview" \
             < "${_tmp_name}" \
             2>/dev/tty
     )
     _rc=$?
-    rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}" "${_tmp_intel}"
+    rm -f "${_tmp_name}" "${_tmp_cost}" "${_tmp_lat}" "${_tmp_up}" "${_tmp_tp}" "${_tmp_intel}" "${_tmp_help}"
 
     if [ "${_rc}" -ne 0 ]; then
-        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _has_intel _count _p _fzf_out _rc
+        unset _intel_arr _tmp_name _tmp_cost _tmp_lat _tmp_up _tmp_tp _tmp_intel _tmp_help _has_intel _count _p _fzf_out _rc
         return 1
     fi
 
@@ -585,7 +625,7 @@ _ui_fzf_preset_menu() {
     _total=$(printf '%s' "${_presets_json}" | jq 'length')
 
     # Build input: tagged lines so first token carries type:payload.
-    _fzf_input="ACTION:__create__  ➕  Create new preset"
+    _fzf_input="ACTION:__create__  + Create new preset"
 
     if [ "${_total}" -gt 0 ]; then
         _fzf_input="${_fzf_input}
@@ -669,10 +709,10 @@ PRESET:${_slug}  ⚡ ${_name}  [${_summary}]"
             _slug="${_payload}"
             _action_out=$(
                 printf '%s\n%s\n%s\n%s\n' \
-                    "launch  ▶  Launch this preset" \
-                    "edit    ✏  Edit provider order" \
-                    "rename  📝  Rename" \
-                    "delete  🗑  Delete" \
+                    "launch  Launch this preset" \
+                    "edit    Edit provider order" \
+                    "rename  Rename" \
+                    "delete  Delete" \
                 | fzf \
                     --prompt "  Action › " \
                     --height '~50%' \
@@ -740,7 +780,7 @@ show_preset_menu() {
 
     while true; do
         printf '\n' >&2
-        printf '  🎯 Presets for\n\n  %s\n\n' "${_model}" >&2
+        printf '  Presets for\n\n  %s\n\n' "${_model}" >&2
         printf '  ────────────────────────────────────────────\n' >&2
 
         if [ "${_total}" -eq 0 ]; then
@@ -953,7 +993,7 @@ prompt_import_mode() {
 show_success() {
     _value="${1:-}"
     printf '\n'
-    printf '  ✅  OPENROUTER_MODEL=%s\n' "${_value}"
+    printf '  ✓  OPENROUTER_MODEL=%s\n' "${_value}"
     printf '\n'
     unset _value
 }
@@ -961,7 +1001,7 @@ show_success() {
 show_error() {
     _message="${1:-An unexpected error occurred.}"
     printf '\n'
-    printf '  ❌  %s\n' "${_message}" >&2
+    printf '  ✘  %s\n' "${_message}" >&2
     printf '\n'
     unset _message
 }

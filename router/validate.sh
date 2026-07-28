@@ -41,10 +41,10 @@ _FAIL=0
 _assert() {
     _desc="${1}"; _result="${2}"; _expected="${3}"
     if [ "${_result}" = "${_expected}" ]; then
-        printf '  ✅  %s\n' "${_desc}"
+        printf '  ✓  %s\n' "${_desc}"
         _PASS=$(( _PASS + 1 ))
     else
-        printf '  ❌  %s\n' "${_desc}" >&2
+        printf '  ✘  %s\n' "${_desc}" >&2
         printf '      expected: %s\n' "${_expected}" >&2
         printf '      got:      %s\n' "${_result}" >&2
         _FAIL=$(( _FAIL + 1 ))
@@ -56,11 +56,11 @@ _assert_contains() {
     _desc="${1}"; _haystack="${2}"; _needle="${3}"
     case "${_haystack}" in
         *"${_needle}"*)
-            printf '  ✅  %s\n' "${_desc}"
+            printf '  ✓  %s\n' "${_desc}"
             _PASS=$(( _PASS + 1 ))
             ;;
         *)
-            printf '  ❌  %s\n' "${_desc}" >&2
+            printf '  ✘  %s\n' "${_desc}" >&2
             printf '      expected to contain: %s\n' "${_needle}" >&2
             printf '      got: %s\n' "${_haystack}" >&2
             _FAIL=$(( _FAIL + 1 ))
@@ -73,13 +73,13 @@ _assert_not_contains() {
     _desc="${1}"; _haystack="${2}"; _needle="${3}"
     case "${_haystack}" in
         *"${_needle}"*)
-            printf '  ❌  %s\n' "${_desc}" >&2
+            printf '  ✘  %s\n' "${_desc}" >&2
             printf '      expected NOT to contain: %s\n' "${_needle}" >&2
             printf '      got: %s\n' "${_haystack}" >&2
             _FAIL=$(( _FAIL + 1 ))
             ;;
         *)
-            printf '  ✅  %s\n' "${_desc}"
+            printf '  ✓  %s\n' "${_desc}"
             _PASS=$(( _PASS + 1 ))
             ;;
     esac
@@ -438,7 +438,7 @@ if [ -f "${BACKUP_OUT}" ]; then
     _assert "backup user_models contains our test model" \
         "$(printf '%s' "${bk}" | jq -r '.user_models[]' | grep -c 'test/usermodel')" "1"
 else
-    printf '  ❌  backup_export did not produce a file\n' >&2
+    printf '  ✘  backup_export did not produce a file\n' >&2
     _FAIL=$(( _FAIL + 1 ))
 fi
 
@@ -540,7 +540,7 @@ rm -rf "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
 # ── Summary ───────────────────────────────────────────────────────────────────
 
 printf '\n════════════════════════════════════════════════════════════════\n'
-printf '  Results:  ✅ %d passed   ❌ %d failed\n' "${_PASS}" "${_FAIL}"
+printf '  Results:  ✓ %d passed   ✘ %d failed\n' "${_PASS}" "${_FAIL}"
 printf '════════════════════════════════════════════════════════════════\n\n'
 
 [ "${_FAIL}" -eq 0 ]

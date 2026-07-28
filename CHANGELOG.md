@@ -5,6 +5,19 @@ All notable changes to OpenPreset will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.2.0] - 2026-07-27
+
+### Added
+- **Portable POSIX Banners**: Converted `assets/lbanner.sh` and `assets/sbanner.sh` to POSIX-compliant `printf %b` ANSI escape sequences.
+- **Smart Banner Display (`show_banner`)**: Shows `lbanner` (ASCII art box) once on first run following installation/update, and `sbanner` (compact box) on subsequent launcher starts.
+- **FZF Interactive Help Card**: Added `?` (and `Ctrl+/`) shortcut in `fzf` provider ordering to toggle a clean preview help card covering shortcuts, navigation, and sorting.
+
+### Changed
+- **Streamlined Installer Output**: Cleaned up `install.sh` by removing verbose step-by-step logs, emoji banners, and launcher path lists for a minimal completion output.
+- **Cleaner FZF Provider Ordering UI**: Removed pre-fzf static text header lines and redundant `print_header` boxes, replacing them with a concise `fzf` header (`Model: <id> · TAB select · s/l/u/t/n sort · v info · ? help`).
+
+---
+
 ## [v2.1.0] - 2026-07-26
 
 ### Added

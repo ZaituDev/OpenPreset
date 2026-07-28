@@ -16,7 +16,7 @@
 # launchers (launchers/cr, extras/launchers/*) for the resolution pattern.
 
 if [ -z "${_ROUTER_DIR:-}" ]; then
-    printf '%s\n' "❌ _ROUTER_DIR is not set — source this file only via a launcher." >&2
+    printf '%s\n' "✘ _ROUTER_DIR is not set — source this file only via a launcher." >&2
     return 1 2>/dev/null || exit 1
 fi
 
@@ -43,6 +43,7 @@ fi
 
 openpreset_router() {
     _router_validate_environment || return 1
+    show_banner
 
     _step=1
     while true; do
@@ -418,8 +419,6 @@ _router_choose_provider_order() {
                 ;;
         esac
     fi
-
-    print_header "${_ROUTER_MODEL}"
 
     # show_provider_intelligence self-gates: it only prints when fzf is
     # unavailable (see ui.sh). When fzf is present, this call is a no-op and
