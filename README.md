@@ -2,6 +2,8 @@
 
 A lightweight, portable POSIX terminal suite for model & provider routing through [OpenRouter](https://openrouter.ai), with live cost/latency/uptime data, reusable presets, and dedicated launchers for top AI coding agents: **Claude Code (`cr`)**, **Kilo Code (`kr`)**, **Hermes Agent (`hr`)**, **OpenClaw (`or`)**, **Pi Agent (`pr`)**, and **Cline (`clr`)**.
 
+<img width="1080" height="620" alt="demo" src="https://github.com/user-attachments/assets/f146a437-56d3-40c1-91ce-5782dda4a515" />
+
 ## What is  OpenPreset?
 
 `openpreset` is an open-source POSIX shell suite that runs right before your favorite AI coding agent starts. It lets you choose which model your agent uses (via OpenRouter), view live metrics for every provider serving that model (cost, latency, uptime, throughput), set a priority order between providers, and save that order as a reusable, cloud-synced preset.
